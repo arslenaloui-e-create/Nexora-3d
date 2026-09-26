@@ -1,0 +1,1 @@
+import type {MetadataRoute} from 'next';export default function sitemap():MetadataRoute.Sitemap{const base=process.env.APP_URL||'http://localhost:3000';return['/','/services','/about','/portfolio','/faq','/contact','/quote','/auth/login','/auth/register'].map(path=>({url:base+path,lastModified:new Date()}))}

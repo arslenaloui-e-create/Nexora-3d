@@ -1,0 +1,254 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  CLIENT
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum ProjectStatus {
+  DRAFT
+  IN_PROGRESS
+  REVIEW
+  COMPLETED
+  ARCHIVED
+}
+
+enum QuoteRequestStatus {
+  NEW
+  REVIEWING
+  QUOTED
+  ACCEPTED
+  REJECTED
+  CLOSED
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum MessageStatus {
+  NEW
+  READ
+  ARCHIVED
+}
+
+model User {
+  id String @id @default(cuid())
+  firstName String
+  lastName String
+  email String @unique
+  phone String?
+  company String?
+  passwordHash String
+  role Role @default(CLIENT)
+  status UserStatus @default(ACTIVE)
+  emailVerifiedAt DateTime?
+  avatarPath String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  projects Project[]
+  quoteRequests QuoteRequest[]
+  quotes Quote[]
+  files FileAsset[]
+  notifications Notification[]
+  sentMessages ChatMessage[] @relation("SentMessages")
+  receivedMessages ChatMessage[] @relation("ReceivedMessages")
+  logs AuditLog[]
+}
+model Project {
+  id String @id @default(cuid())
+  clientId String
+  client User @relation(fields:[clientId], references:[id], onDelete: Cascade)
+  title String
+  description String
+  status ProjectStatus @default(DRAFT)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  files FileAsset[]
+  history ProjectHistory[]
+  @@index([clientId,status])
+}
+model ProjectHistory {
+  id String @id @default(cuid())
+  projectId String
+  project Project @relation(fields:[projectId], references:[id], onDelete: Cascade)
+  status ProjectStatus
+  note String?
+  createdAt DateTime @default(now())
+  @@index([projectId,createdAt])
+}
+model QuoteRequest {
+  id String @id @default(cuid())
+  clientId String
+  client User @relation(fields:[clientId], references:[id], onDelete: Cascade)
+  title String
+  serviceType String @default("Autre")
+  description String
+  dimensions String?
+  quantity Int?
+  material String?
+  tolerance String?
+  budget Decimal? @db.Decimal(12,2)
+  deadline DateTime?
+  status QuoteRequestStatus @default(NEW)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  files FileAsset[]
+  quotes Quote[]
+  @@index([clientId,status])
+}
+model Quote {
+  id String @id @default(cuid())
+  number String @unique
+  clientId String
+  client User @relation(fields:[clientId], references:[id], onDelete: Cascade)
+  requestId String?
+  request QuoteRequest? @relation(fields:[requestId], references:[id], onDelete:SetNull)
+  discount Decimal @default(0) @db.Decimal(12,2)
+  taxRate Decimal @default(19) @db.Decimal(5,2)
+  totalHT Decimal @default(0) @db.Decimal(12,2)
+  totalTTC Decimal @default(0) @db.Decimal(12,2)
+  validUntil DateTime
+  status QuoteStatus @default(DRAFT)
+  conditions String
+  notes String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lines QuoteLine[]
+  @@index([clientId,status])
+}
+model QuoteLine {
+  id String @id @default(cuid())
+  quoteId String
+  quote Quote @relation(fields:[quoteId], references:[id], onDelete:Cascade)
+  description String
+  quantity Decimal @db.Decimal(10,2)
+  unitPrice Decimal @db.Decimal(12,2)
+  position Int @default(0)
+}
+model FileAsset {
+  id String @id @default(cuid())
+  originalName String
+  storedName String @unique
+  mimeType String
+  size Int
+  ownerId String
+  owner User @relation(fields:[ownerId], references:[id], onDelete:Cascade)
+  projectId String?
+  project Project? @relation(fields:[projectId], references:[id], onDelete:SetNull)
+  requestId String?
+  request QuoteRequest? @relation(fields:[requestId], references:[id], onDelete:SetNull)
+  createdAt DateTime @default(now())
+  @@index([ownerId,createdAt])
+  @@index([projectId])
+  @@index([requestId])
+}
+model PortfolioItem {
+  id String @id @default(cuid())
+  title String
+  description String
+  category String
+  technologies String
+  tags String
+  images String
+  visible Boolean @default(true)
+  sortOrder Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+model FAQ {
+  id String @id @default(cuid())
+  question String
+  answer String
+  category String
+  sortOrder Int @default(0)
+  visible Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+model ContactMessage {
+  id String @id @default(cuid())
+  name String
+  email String
+  phone String?
+  subject String
+  message String
+  status MessageStatus @default(NEW)
+  createdAt DateTime @default(now())
+}
+model ChatMessage {
+  id String @id @default(cuid())
+  senderId String
+  sender User @relation("SentMessages", fields:[senderId], references:[id], onDelete:Cascade)
+  recipientId String
+  recipient User @relation("ReceivedMessages", fields:[recipientId], references:[id], onDelete:Cascade)
+  content String
+  readAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([senderId,createdAt])
+  @@index([recipientId,readAt])
+}
+model Notification {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  type String
+  message String
+  readAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([userId,readAt])
+}
+model AuditLog {
+  id String @id @default(cuid())
+  userId String?
+  user User? @relation(fields:[userId], references:[id], onDelete:SetNull)
+  action String
+  metadata String?
+  createdAt DateTime @default(now())
+  @@index([userId,createdAt])
+}
+model SiteSettings {
+  id Int @id @default(1)
+  logoPath String @default("/logo.jpg")
+  email String @default("contact@nexora3d.tn")
+  phone String?
+  instagram String?
+  linkedin String?
+  description String @default("Ingénierie 3D & impression haute précision")
+  taxRate Decimal @default(19) @db.Decimal(5,2)
+  updatedAt DateTime @updatedAt
+}
+model PasswordResetToken {
+  id String @id @default(cuid())
+  userId String
+  tokenHash String @unique
+  expiresAt DateTime
+  usedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([userId,expiresAt])
+}
+model EmailVerificationToken {
+  id String @id @default(cuid())
+  userId String
+  tokenHash String @unique
+  expiresAt DateTime
+  usedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([userId,expiresAt])
+}

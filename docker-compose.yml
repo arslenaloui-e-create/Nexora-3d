@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: nexora-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nexora3d
+      POSTGRES_USER: nexora
+      POSTGRES_PASSWORD: nexora
+    ports:
+      - "5432:5432"
+    volumes:
+      - nexora_pgdata:/var/lib/postgresql/data
+volumes:
+  nexora_pgdata:

@@ -1,0 +1,1 @@
+import {NextResponse} from 'next/server';import {db} from '@/lib/db';import {requireUser} from '@/lib/auth';export async function PATCH(){try{const u=await requireUser();await db.notification.updateMany({where:{userId:u.id,readAt:null},data:{readAt:new Date()}});return NextResponse.json({ok:true})}catch{return NextResponse.json({error:'Erreur'},{status:400})}}
