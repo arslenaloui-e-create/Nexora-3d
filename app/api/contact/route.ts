@@ -1,2 +1,25 @@
-import {NextResponse} from 'next/server';import {db} from '@/lib/db';import {contactSchema} from '@/lib/validators';import {rateLimit} from '@/lib/rate-limit';import {sendMail} from '@/lib/mail';
-export async function POST(req:Request){const ip=req.headers.get('x-forwarded-for')||'unknown';if(!rateLimit(`contact:${ip}`,5,60000))return NextResponse.json({error:'Trop de demandes. Réessayez plus tard.'},{status:429});try{const d=contactSchema.parse(await req.json());if(d.website)return NextResponse.json({message:'Message reçu.'});const row=await db.contactMessage.create({data:{name:d.name,email:d.email,phone:d.phone||null,subject:d.subject,message:d.message}});const admin=await db.user.findFirst({where:{role:'ADMIN',status:'ACTIVE'}});if(admin)await db.notification.create({data:{userId:admin.id,type:'CONTACT',message:`Nouveau message de ${row.name} : ${row.subject}`}});if(process.env.SMTP_USER)await sendMail(process.env.SMTP_USER,`Nouveau contact — ${row.subject}`,`<p>${row.name} — ${row.email}</p><p>${row.message}</p>`);return NextResponse.json({message:'Votre message a bien été envoyé.'})}catch{return NextResponse.json({error:'Formulaire invalide.'},{status:400})}}
+import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { contactSchema } from '@/lib/validators';
+import { rateLimit } from '@/lib/rate-limit';
+import { adminInbox, escapeHtml, sendMail } from '@/lib/mail';
+import { notifyAdmins } from '@/lib/notify';
+import { apiError, clientIp, jsonError } from '@/lib/api';
+
+export async function POST(req: Request) {
+  try {
+    if (!rateLimit(`contact:${clientIp(req)}`, 5, 60_000)) return jsonError('Trop de messages envoyés. Réessayez dans une minute.', 429);
+    const d = contactSchema.parse(await req.json());
+    if (d.website) return NextResponse.json({ message: 'Message envoyé.' });
+    const row = await db.contactMessage.create({ data: { name: d.name, email: d.email, phone: d.phone || null, subject: d.subject, message: d.message } });
+    await notifyAdmins('CONTACT', `Nouveau message de ${row.name} : ${row.subject}`);
+    await sendMail(
+      adminInbox(),
+      `Contact — ${row.subject}`,
+      `<p><b>${escapeHtml(row.name)}</b> — ${escapeHtml(row.email)}${row.phone ? ` — ${escapeHtml(row.phone)}` : ''}</p><p style="white-space:pre-wrap">${escapeHtml(row.message)}</p>`,
+    );
+    return NextResponse.json({ message: 'Message envoyé. Nous vous répondons par email, en général sous 24 h.' });
+  } catch (e) {
+    return apiError(e, 'Envoi impossible pour le moment.');
+  }
+}

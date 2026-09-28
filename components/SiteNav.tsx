@@ -4,84 +4,56 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 
-type Session = { role?: string } | null;
-
 const links = [
   ['/services', 'Services'],
-  ['/portfolio', 'Portfolio'],
+  ['/portfolio', 'Réalisations'],
   ['/about', 'À propos'],
   ['/faq', 'FAQ'],
   ['/contact', 'Contact'],
-  ['/quote', 'Devis'],
 ] as const;
 
-export default function SiteNav({ session, logoPath }: { session: Session; logoPath: string }) {
+export default function SiteNav({ role, logoPath }: { role: 'ADMIN' | 'CLIENT' | null; logoPath: string }) {
   const pathname = usePathname();
-  const [scrolled, setScrolled] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [open, setOpen] = useState(false);
-  const spaceHref = session?.role === 'ADMIN' ? '/admin' : '/dashboard';
-
-  useEffect(() => {
-    const onScroll = () => {
-      setScrolled(window.scrollY > 18);
-      const max = document.documentElement.scrollHeight - window.innerHeight;
-      setProgress(max > 0 ? Math.min(100, Math.max(0, (window.scrollY / max) * 100)) : 0);
-    };
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+  const space = role === 'ADMIN' ? '/admin' : '/dashboard';
 
   useEffect(() => setOpen(false), [pathname]);
-
   useEffect(() => {
-    document.body.classList.toggle('menu-open', open);
-    return () => document.body.classList.remove('menu-open');
+    document.body.classList.toggle('no-scroll', open);
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    window.addEventListener('keydown', onKey);
+    return () => { document.body.classList.remove('no-scroll'); window.removeEventListener('keydown', onKey); };
   }, [open]);
 
-  const active = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const current = (href: string) => (pathname === href || pathname.startsWith(`${href}/`) ? 'page' : undefined);
+  const account = role
+    ? <Link className="btn btn-primary" href={space}>{role === 'ADMIN' ? 'Administration' : 'Mon espace'}</Link>
+    : <Link className="btn btn-primary" href="/quote">Demander un devis</Link>;
 
   return (
-    <header className={`nav ${scrolled ? 'navScrolled' : ''}`}>
-      <div className="navProgress" style={{ width: `${progress}%` }} />
-      <div className="container navin">
-        <Link className="brand" href="/" aria-label="Nexora 3D accueil">
-          <span className="brandMark"><img src={logoPath} alt="" /></span>
-          <span>NEXORA <b>3D</b></span>
+    <header className="site-header">
+      <div className="wrap">
+        <Link className="brand" href="/" aria-label="Nexora 3D, accueil">
+          <span className="brand-mark" style={{ backgroundImage: `url(${logoPath})` }} aria-hidden="true" />
+          <span>NEXORA</span>
         </Link>
-
-        <nav className="links" aria-label="Navigation principale">
-          {links.map(([href, label]) => (
-            <Link className={active(href) ? 'navActive' : ''} href={href} key={href}>{label}</Link>
-          ))}
-          {session ? (
-            <Link className="btn navCta" href={spaceHref}>Mon espace <span aria-hidden="true">↗</span></Link>
-          ) : (
-            <Link className="btn btn-secondary navCta" href="/auth/login">Connexion <span aria-hidden="true">↗</span></Link>
-          )}
+        <nav className="nav" aria-label="Navigation principale">
+          {links.map(([href, label]) => <Link key={href} href={href} aria-current={current(href)}>{label}</Link>)}
+          {!role && <Link href="/auth/login" aria-current={current('/auth/login')}>Connexion</Link>}
+          {account}
         </nav>
-
-        <div className="mobileNav">
-          <button
-            className="mobileNavToggle"
-            type="button"
-            aria-label={open ? 'Fermer le menu' : 'Ouvrir le menu'}
-            aria-expanded={open}
-            aria-controls="mobile-navigation"
-            onClick={() => setOpen(v => !v)}
-          >
-            <span /><span /><span />
-          </button>
-          {open && (
-            <nav id="mobile-navigation" className="mobileNavPanel" aria-label="Navigation mobile">
-              <div className="mobileNavLabel">NEXORA / NAVIGATION</div>
-              {links.map(([href, label]) => <Link className={active(href) ? 'navActive' : ''} href={href} key={href}>{label}</Link>)}
-              {session ? <Link className="btn" href={spaceHref}>Mon espace ↗</Link> : <Link className="btn btn-secondary" href="/auth/login">Connexion ↗</Link>}
-            </nav>
-          )}
-        </div>
+        <button className="menu-btn" type="button" aria-label={open ? 'Fermer le menu' : 'Ouvrir le menu'} aria-expanded={open} aria-controls="menu-mobile" onClick={() => setOpen(v => !v)}>
+          <span />
+        </button>
       </div>
+      {open && (
+        <nav id="menu-mobile" className="mobile-panel" aria-label="Navigation mobile">
+          <Link href="/" aria-current={pathname === '/' ? 'page' : undefined}>Accueil</Link>
+          {links.map(([href, label]) => <Link key={href} href={href} aria-current={current(href)}>{label}</Link>)}
+          {!role && <Link href="/auth/login">Connexion</Link>}
+          {account}
+        </nav>
+      )}
     </header>
   );
 }

@@ -1,1 +1,33 @@
-import {NextResponse} from 'next/server';import {db} from '@/lib/db';import {requireUser} from '@/lib/auth';import {hashPassword,verifyPassword} from '@/lib/security';export async function GET(){try{const u=await requireUser();return NextResponse.json({id:u.id,firstName:u.firstName,lastName:u.lastName,email:u.email,phone:u.phone,company:u.company})}catch{return NextResponse.json({error:'Forbidden'},{status:403})}}export async function PATCH(req:Request){try{const u=await requireUser();const d=await req.json();const data:any={firstName:String(d.firstName).slice(0,60),lastName:String(d.lastName).slice(0,60),phone:String(d.phone||'').slice(0,30)||null,company:String(d.company||'').slice(0,160)||null};if(d.newPassword){if(!d.currentPassword||!(await verifyPassword(d.currentPassword,u.passwordHash)))return NextResponse.json({error:'Mot de passe actuel incorrect.'},{status:400});data.passwordHash=await hashPassword(String(d.newPassword))}await db.user.update({where:{id:u.id},data});return NextResponse.json({message:'Profil mis à jour.'})}catch{return NextResponse.json({error:'Mise à jour impossible.'},{status:400})}}
+import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { requireUser } from '@/lib/auth';
+import { hashPassword, verifyPassword } from '@/lib/security';
+import { profileSchema } from '@/lib/validators';
+import { apiError, jsonError } from '@/lib/api';
+
+export async function GET() {
+  try {
+    const u = await requireUser();
+    return NextResponse.json({ id: u.id, firstName: u.firstName, lastName: u.lastName, email: u.email, phone: u.phone, company: u.company });
+  } catch (e) {
+    return apiError(e);
+  }
+}
+
+export async function PATCH(req: Request) {
+  try {
+    const u = await requireUser();
+    const d = profileSchema.parse(await req.json());
+    const data: { firstName: string; lastName: string; phone: string | null; company: string | null; passwordHash?: string } = {
+      firstName: d.firstName, lastName: d.lastName, phone: d.phone || null, company: d.company || null,
+    };
+    if (d.newPassword) {
+      if (!d.currentPassword || !(await verifyPassword(d.currentPassword, u.passwordHash))) return jsonError('Le mot de passe actuel est incorrect.', 400);
+      data.passwordHash = await hashPassword(d.newPassword);
+    }
+    await db.user.update({ where: { id: u.id }, data });
+    return NextResponse.json({ message: d.newPassword ? 'Profil et mot de passe enregistrés.' : 'Profil enregistré.' });
+  } catch (e) {
+    return apiError(e, 'Enregistrement impossible.');
+  }
+}

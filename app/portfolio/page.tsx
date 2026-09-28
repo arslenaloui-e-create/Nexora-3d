@@ -1,39 +1,27 @@
-import { db } from '@/lib/db';
+import type { Metadata } from 'next';
+import Link from 'next/link';
 import PortfolioBrowser from '@/components/PortfolioBrowser';
+import { getPortfolio } from '@/lib/portfolio';
+
+export const metadata: Metadata = { title: 'Réalisations', description: 'Modèles CAO, pièces mécaniques et prototypes conçus par Nexora 3D.' };
 
 export default async function Portfolio() {
-  const items = await db.portfolioItem.findMany({
-    where: { visible: true },
-    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
-  });
-
+  const items = await getPortfolio();
   return (
-    <main className="portfolioPage">
-      <section className="section portfolioHero">
-        <div className="container">
-          <div className="portfolioHeroGrid">
-            <div>
-              <div className="eyebrow">NEXORA 3D / RÉALISATIONS</div>
-              <h1>Des idées transformées en <span>objets réels.</span></h1>
-              <p className="lead">
-                Une sélection de travaux en conception mécanique, CAO, prototypage, impression 3D et robotique.
-                Explorez les différentes vues et ouvrez chaque projet pour accéder à son dossier complet.
-              </p>
-            </div>
-            <div className="portfolioHeroTelemetry" aria-label="Informations du portfolio">
-              <div><span>PROJETS</span><strong>{String(items.length).padStart(2, '0')}</strong></div>
-              <div><span>DOMAINES</span><strong>{String(new Set(items.map(item => item.category).filter(Boolean)).size).padStart(2, '0')}</strong></div>
-              <div><span>MODE</span><strong>PUBLIC</strong></div>
-            </div>
+    <main className="page">
+      <div className="wrap">
+        <header className="page-head">
+          <h1>Réalisations</h1>
+          <p className="lead">Maquettes navales, mécanismes, robotique, objets connectés : chaque planche est un modèle conçu au studio. Ouvrez-en une pour voir toutes ses vues.</p>
+        </header>
+        {items.length ? <PortfolioBrowser items={items} /> : (
+          <div className="empty">
+            <strong>Le portfolio est en cours de mise à jour.</strong>
+            <span>Pour voir des exemples proches de votre besoin, écrivez-nous.</span>
+            <Link className="btn btn-quiet btn-sm" href="/contact">Nous contacter</Link>
           </div>
-        </div>
-      </section>
-
-      <section className="section portfolioSection">
-        <div className="container">
-          <PortfolioBrowser items={items} />
-        </div>
-      </section>
+        )}
+      </div>
     </main>
   );
 }

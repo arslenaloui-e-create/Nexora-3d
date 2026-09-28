@@ -1,1 +1,24 @@
-'use client';import {useEffect,useState} from 'react';export default function Requests(){const [rows,setRows]=useState<any[]>([]);async function load(){setRows(await (await fetch('/api/admin/requests')).json())}useEffect(()=>{load()},[]);async function change(id:string,status:string){await fetch('/api/admin/requests',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({id,status})});load()}return <><h1>Demandes de devis</h1><div className="tableWrap"><table className="table"><thead><tr><th>Client</th><th>Titre</th><th>Budget</th><th>Statut</th><th></th></tr></thead><tbody>{rows.map(x=><tr key={x.id}><td>{x.client.firstName} {x.client.lastName}</td><td>{x.title}</td><td>{x.budget?`${x.budget} TND`:'—'}</td><td><select value={x.status} onChange={e=>change(x.id,e.target.value)}><option>NEW</option><option>REVIEWING</option><option>QUOTED</option><option>ACCEPTED</option><option>REJECTED</option><option>CLOSED</option></select></td><td><a className="btn alt" href={`/admin/quotes?request=${x.id}`}>Créer devis</a></td></tr>)}</tbody></table></div></>}
+import { db } from '@/lib/db';
+import { pageUser } from '@/lib/guard';
+import { PageHead } from '@/components/ui';
+import RequestsBoard from './RequestsBoard';
+
+export default async function Requests() {
+  await pageUser('ADMIN');
+  const rows = await db.quoteRequest.findMany({
+    include: {
+      client: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, company: true } },
+      quotes: { select: { id: true, number: true, status: true } },
+      files: { select: { id: true, originalName: true, size: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 500,
+  });
+  const data = rows.map(r => ({ ...r, budget: r.budget === null ? null : Number(r.budget), createdAt: r.createdAt.toISOString(), deadline: r.deadline?.toISOString() || null, updatedAt: r.updatedAt.toISOString() }));
+  return (
+    <>
+      <PageHead title="Demandes de devis" text="Ouvrez une demande pour voir le détail, les fichiers joints et préparer le devis." />
+      <RequestsBoard rows={data} />
+    </>
+  );
+}

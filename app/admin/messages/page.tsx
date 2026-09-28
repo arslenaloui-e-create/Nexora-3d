@@ -1,1 +1,21 @@
-'use client';import {useEffect,useState} from 'react';export default function Messages(){const [rows,setRows]=useState<any[]>([]);const [clients,setClients]=useState<any[]>([]);async function load(){const [m,u]=await Promise.all([fetch('/api/messages').then(r=>r.json()),fetch('/api/admin/users').then(r=>r.json())]);setRows(m);setClients(u.filter((x:any)=>x.role==='CLIENT'))}useEffect(()=>{load()},[]);async function reply(e:any){e.preventDefault();const d:any=Object.fromEntries(new FormData(e.currentTarget));await fetch('/api/messages',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(d)});e.currentTarget.reset();load()}return <><h1>Messages</h1><form className="card form" onSubmit={reply}><h3>Répondre à un client</h3><div className="field"><label>Client</label><select name="recipientId" required>{clients.map(c=><option key={c.id} value={c.id}>{c.firstName} {c.lastName} — {c.email}</option>)}</select></div><div className="field"><label>Message</label><textarea name="content" required/></div><button className="btn">Envoyer</button></form><div style={{marginTop:20}}>{rows.map(x=><div className="card" style={{marginBottom:10}} key={x.id}><strong>{x.sender.firstName} {x.sender.lastName} → {x.recipient.firstName} {x.recipient.lastName}</strong><p>{x.content}</p><small>{new Date(x.createdAt).toLocaleString('fr-FR')}</small></div>)}</div></>}
+import { db } from '@/lib/db';
+import { pageUser } from '@/lib/guard';
+import { PageHead } from '@/components/ui';
+import MessagesAdmin from './MessagesAdmin';
+
+export default async function Messages({ searchParams }: { searchParams: Promise<{ tab?: string; client?: string }> }) {
+  const me = await pageUser('ADMIN');
+  const sp = await searchParams;
+  const contacts = await db.contactMessage.findMany({ orderBy: { createdAt: 'desc' }, take: 300 });
+  return (
+    <>
+      <PageHead title="Messages" text="Conversations avec les clients et messages reçus par le formulaire de contact." />
+      <MessagesAdmin
+        meId={me.id}
+        initialTab={sp.tab === 'contact' ? 'contact' : 'chat'}
+        initialClient={sp.client || ''}
+        contacts={contacts.map(c => ({ ...c, createdAt: c.createdAt.toISOString() }))}
+      />
+    </>
+  );
+}

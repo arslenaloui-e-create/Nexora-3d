@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
+import { apiError, jsonError } from '@/lib/api';
 
 type Payload = {
   id?: string;
@@ -18,12 +19,13 @@ function text(value: unknown, max: number) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
 }
 
+// Seuls les chemins du site (/images/...) et les URL https sont acceptés comme images.
 function imageList(value: unknown) {
   if (!Array.isArray(value)) return [];
   return value
     .filter((item): item is string => typeof item === 'string')
     .map(item => item.trim())
-    .filter(Boolean)
+    .filter(item => /^\/(?!\/)[^\s"'<>]+$/.test(item) || /^https:\/\/[^\s"'<>]+$/.test(item))
     .slice(0, 30);
 }
 
@@ -31,7 +33,6 @@ function payloadData(data: Payload) {
   const title = text(data.title, 160);
   const description = text(data.description, 5000);
   if (!title || !description) throw new Error('TITLE_AND_DESCRIPTION_REQUIRED');
-
   return {
     title,
     description,
@@ -40,57 +41,52 @@ function payloadData(data: Payload) {
     tags: text(data.tags, 500),
     images: JSON.stringify(imageList(data.images)),
     visible: data.visible !== false,
-    sortOrder: Number.isFinite(Number(data.sortOrder)) ? Number(data.sortOrder) : 0,
+    sortOrder: Number.isFinite(Number(data.sortOrder)) ? Math.trunc(Number(data.sortOrder)) : 0,
   };
 }
 
+function handle(error: unknown) {
+  if (error instanceof Error && error.message === 'TITLE_AND_DESCRIPTION_REQUIRED') return jsonError('Le titre et la description sont obligatoires.');
+  return apiError(error);
+}
+
 export async function GET() {
-  await requireUser('ADMIN');
-  const rows = await db.portfolioItem.findMany({
-    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
-  });
-  return NextResponse.json(rows);
+  try {
+    await requireUser('ADMIN');
+    return NextResponse.json(await db.portfolioItem.findMany({ orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }] }));
+  } catch (e) {
+    return handle(e);
+  }
 }
 
 export async function POST(req: Request) {
-  await requireUser('ADMIN');
   try {
-    const data = payloadData(await req.json());
-    return NextResponse.json(await db.portfolioItem.create({ data }));
-  } catch (error) {
-    if (error instanceof Error && error.message === 'TITLE_AND_DESCRIPTION_REQUIRED') {
-      return NextResponse.json({ error: 'Titre et description requis.' }, { status: 400 });
-    }
-    return NextResponse.json({ error: 'Impossible de créer le projet.' }, { status: 500 });
+    await requireUser('ADMIN');
+    return NextResponse.json(await db.portfolioItem.create({ data: payloadData(await req.json()) }));
+  } catch (e) {
+    return handle(e);
   }
 }
 
 export async function PATCH(req: Request) {
-  await requireUser('ADMIN');
   try {
-    const body = await req.json() as Payload;
-    if (!body.id || typeof body.id !== 'string') {
-      return NextResponse.json({ error: 'Identifiant du projet requis.' }, { status: 400 });
-    }
-    const data = payloadData(body);
-    return NextResponse.json(await db.portfolioItem.update({ where: { id: body.id }, data }));
-  } catch (error) {
-    if (error instanceof Error && error.message === 'TITLE_AND_DESCRIPTION_REQUIRED') {
-      return NextResponse.json({ error: 'Titre et description requis.' }, { status: 400 });
-    }
-    return NextResponse.json({ error: 'Impossible de mettre à jour le projet.' }, { status: 500 });
+    await requireUser('ADMIN');
+    const body = (await req.json()) as Payload;
+    if (!body.id || typeof body.id !== 'string') return jsonError('Réalisation introuvable.', 404);
+    return NextResponse.json(await db.portfolioItem.update({ where: { id: body.id }, data: payloadData(body) }));
+  } catch (e) {
+    return handle(e);
   }
 }
 
 export async function DELETE(req: Request) {
-  await requireUser('ADMIN');
-  const id = new URL(req.url).searchParams.get('id');
-  if (!id) return NextResponse.json({ error: 'Identifiant du projet requis.' }, { status: 400 });
-
   try {
+    await requireUser('ADMIN');
+    const id = new URL(req.url).searchParams.get('id');
+    if (!id) return jsonError('Réalisation introuvable.', 404);
     await db.portfolioItem.delete({ where: { id } });
     return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ error: 'Projet introuvable ou déjà supprimé.' }, { status: 404 });
+  } catch (e) {
+    return handle(e);
   }
 }

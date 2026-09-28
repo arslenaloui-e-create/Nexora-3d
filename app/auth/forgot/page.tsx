@@ -1,1 +1,38 @@
-'use client';import {useState} from 'react';export default function Forgot(){const [m,setM]=useState('');async function s(e:any){e.preventDefault();const r=await fetch('/api/auth/forgot',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(Object.fromEntries(new FormData(e.currentTarget)))});const j=await r.json();setM(j.message||j.error)}return <main><section className="section"><div className="container"><div className="card" style={{maxWidth:520,margin:'auto'}}><h1>Mot de passe oublié</h1><form className="form" onSubmit={s}><div className="field"><label>Email</label><input name="email" type="email" required/></div><button className="btn">Envoyer</button></form>{m&&<div className="notice">{m}</div>}</div></div></section></main>}
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+import Notice, { type NoticeState } from '@/components/Notice';
+import { api, formJson } from '@/lib/client';
+
+export default function Forgot() {
+  const [notice, setNotice] = useState<NoticeState>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    const r = await api('/api/auth/forgot', 'POST', formJson(e.currentTarget));
+    setLoading(false);
+    setNotice(r.ok ? { kind: 'ok', text: r.data.message } : { kind: 'error', text: r.error });
+  }
+
+  return (
+    <main className="auth">
+      <div className="wrap" style={{ display: 'grid', placeItems: 'center' }}>
+        <div className="auth-card">
+          <div style={{ display: 'grid', gap: 8 }}>
+            <h1>Mot de passe oublié</h1>
+            <p className="muted">Indiquez l’email de votre compte : nous vous envoyons un lien pour choisir un nouveau mot de passe.</p>
+          </div>
+          <form className="form" onSubmit={submit}>
+            <div className="field"><label htmlFor="f-email">Email</label><input id="f-email" name="email" type="email" autoComplete="email" required /></div>
+            <Notice value={notice} />
+            <button className="btn btn-primary btn-block" disabled={loading}>{loading ? 'Envoi…' : 'Envoyer le lien'}</button>
+          </form>
+          <div className="auth-foot"><Link className="link" href="/auth/login">Retour à la connexion</Link></div>
+        </div>
+      </div>
+    </main>
+  );
+}

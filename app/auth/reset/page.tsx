@@ -1,1 +1,21 @@
-'use client';import {useSearchParams,useRouter} from 'next/navigation';import {useState} from 'react';export default function Reset(){const p=useSearchParams();const token=p.get('token')||'';const [m,setM]=useState('');const r=useRouter();async function s(e:any){e.preventDefault();const d:any=Object.fromEntries(new FormData(e.currentTarget));d.token=token;const res=await fetch('/api/auth/reset',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(d)});const j=await res.json();setM(j.message||j.error);if(res.ok)setTimeout(()=>r.push('/auth/login'),800)}return <main><section className="section"><div className="container"><div className="card" style={{maxWidth:520,margin:'auto'}}><h1>Nouveau mot de passe</h1><form className="form" onSubmit={s}><div className="field"><label>Nouveau mot de passe</label><input name="password" type="password" minLength={8} required/></div><button className="btn">Réinitialiser</button></form>{m&&<div className="notice">{m}</div>}</div></div></section></main>}
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import ResetForm from './ResetForm';
+
+export const metadata: Metadata = { title: 'Nouveau mot de passe' };
+
+export default async function Reset({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
+  const token = (await searchParams).token || '';
+  return (
+    <main className="auth">
+      <div className="wrap" style={{ display: 'grid', placeItems: 'center' }}>
+        <div className="auth-card">
+          <h1>Nouveau mot de passe</h1>
+          {token ? <ResetForm token={token} /> : (
+            <div className="alert alert-error">Ce lien est incomplet. Ouvrez le lien reçu par email, ou <Link href="/auth/forgot">demandez-en un nouveau</Link>.</div>
+          )}
+        </div>
+      </div>
+    </main>
+  );
+}

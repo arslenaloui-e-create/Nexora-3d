@@ -1,1 +1,31 @@
-'use client';import {useState} from 'react';export default function Contact(){const [m,setM]=useState('');const [loading,setLoading]=useState(false);async function submit(e:any){e.preventDefault();setLoading(true);setM('');const fd=new FormData(e.currentTarget);const r=await fetch('/api/contact',{method:'POST',body:JSON.stringify(Object.fromEntries(fd)),headers:{'content-type':'application/json'}});const j=await r.json();setM(j.message||j.error||'Erreur');setLoading(false);if(r.ok)e.currentTarget.reset()}return <main><section className="section"><div className="container"><div className="eyebrow">Contact</div><h1>Parlons de votre projet.</h1><form className="form" onSubmit={submit}><div className="split"><div className="field"><label>Nom</label><input name="name" required/></div><div className="field"><label>Email</label><input name="email" type="email" required/></div></div><div className="split"><div className="field"><label>Téléphone</label><input name="phone"/></div><div className="field"><label>Sujet</label><input name="subject" required/></div></div><div className="field"><label>Message</label><textarea name="message" required/></div><div style={{display:'none'}}><input name="website" tabIndex={-1} autoComplete="off"/></div><button className="btn" disabled={loading}>{loading?'Envoi…':'Envoyer'}</button>{m&&<div className="notice">{m}</div>}</form></div></section></main>}
+import type { Metadata } from 'next';
+import { getSite } from '@/lib/site';
+import ContactForm from './ContactForm';
+
+export const metadata: Metadata = { title: 'Contact', description: 'Écrivez à Nexora 3D par formulaire, email, téléphone ou WhatsApp.' };
+
+export default async function Contact() {
+  const site = await getSite();
+  const tel = (v: string) => `tel:${v.replace(/[^\d+]/g, '')}`;
+  return (
+    <main className="page">
+      <div className="wrap">
+        <header className="page-head">
+          <h1>Contact</h1>
+          <p className="lead">Une question, un projet à estimer, un fichier à vérifier ? Écrivez-nous, nous répondons en général sous 24 h.</p>
+        </header>
+        <div className="contact-grid">
+          <ContactForm />
+          <aside className="contact-aside" aria-label="Coordonnées">
+            <a href={`mailto:${site.email}`}><span>Email</span><strong>{site.email}</strong></a>
+            <a href={tel(site.phone)}><span>Téléphone</span><strong>{site.phone}</strong></a>
+            <a href={tel(site.phone2)}><span>Téléphone 2</span><strong>{site.phone2}</strong></a>
+            <a href={`https://wa.me/${site.whatsapp}`} target="_blank" rel="noopener noreferrer"><span>WhatsApp</span><strong>Écrire sur WhatsApp</strong></a>
+            <div><span>Atelier</span><strong>Tunis, Tunisie</strong></div>
+            <p className="muted small" style={{ paddingTop: 16 }}>Pour un devis, le formulaire dédié permet de joindre vos fichiers et de suivre la réponse dans votre espace client.</p>
+          </aside>
+        </div>
+      </div>
+    </main>
+  );
+}
