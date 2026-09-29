@@ -5,7 +5,8 @@ import { getSite } from '@/lib/site';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
 
-const base = process.env.APP_URL || 'http://localhost:3000';
+const rawBase = process.env.APP_URL || 'http://localhost:3000';
+const base = /^https?:\/\//i.test(rawBase) ? rawBase : `https://${rawBase}`;
 
 export const metadata: Metadata = {
   metadataBase: new URL(base),
