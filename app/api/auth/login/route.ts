@@ -9,10 +9,16 @@ import { apiError, clientIp, jsonError } from "@/lib/api";
 export async function POST(req: Request) {
   try {
     const data = loginSchema.parse(await req.json());
+
     // 10 essais par compte et par connexion, 50 par connexion tous comptes confondus.
     const ip = clientIp(req);
+
     if (
-      !rateLimit(`login:${ip}:${data.email.toLowerCase()}`, 10, 10 * 60_000) ||
+      !rateLimit(
+        `login:${ip}:${data.email.toLowerCase()}`,
+        10,
+        10 * 60_000,
+      ) ||
       !rateLimit(`login:${ip}`, 50, 10 * 60_000)
     ) {
       return jsonError(
@@ -20,22 +26,18 @@ export async function POST(req: Request) {
         429,
       );
     }
+
     const u = await db.user.findUnique({
       where: { email: data.email.toLowerCase().trim() },
     });
+
     if (!u || !(await verifyPassword(data.password, u.passwordHash))) {
       return jsonError("Email ou mot de passe incorrect.", 401);
     }
 
     if (u.status !== "ACTIVE") {
-      return jsonError("Ce compte est désactivé. Contactez Nexora 3D.", 403);
-    }
-
-    // Les administrateurs peuvent se connecter sans validation email.
-    // Les comptes clients doivent obligatoirement confirmer leur adresse.
-    if (u.role === "CLIENT" && !u.emailVerifiedAt) {
       return jsonError(
-        "Votre adresse email n’est pas encore vérifiée. Consultez votre boîte mail pour confirmer votre compte.",
+        "Ce compte est désactivé. Contactez Nexora 3D.",
         403,
       );
     }
@@ -45,6 +47,7 @@ export async function POST(req: Request) {
       role: u.role,
       email: u.email,
     });
+
     return NextResponse.json({ role: u.role });
   } catch (e) {
     return apiError(e, "Connexion impossible pour le moment.");
