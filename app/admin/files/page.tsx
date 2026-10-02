@@ -1,1 +1,23 @@
-import {db} from '@/lib/db';import {requireUser} from '@/lib/auth';export default async function Files(){await requireUser('ADMIN');const rows=await db.fileAsset.findMany({include:{owner:true,project:true,request:true},orderBy:{createdAt:'desc'},take:500});return <><h1>Fichiers</h1><div className="tableWrap"><table className="table"><thead><tr><th>Nom</th><th>Client</th><th>Contexte</th><th>Taille</th><th></th></tr></thead><tbody>{rows.map(x=><tr key={x.id}><td>{x.originalName}</td><td>{x.owner.firstName} {x.owner.lastName}</td><td>{x.project?.title||x.request?.title||'—'}</td><td>{(x.size/1024/1024).toFixed(2)} MB</td><td><a className="btn alt" href={`/api/files/${x.id}`}>Télécharger</a></td></tr>)}</tbody></table></div></>}
+import { db } from '@/lib/db';
+import { pageUser } from '@/lib/guard';
+import { PageHead } from '@/components/ui';
+import FileList from '@/components/FileList';
+
+export default async function Files() {
+  await pageUser('ADMIN');
+  const rows = await db.fileAsset.findMany({
+    include: { owner: { select: { firstName: true, lastName: true, role: true } }, project: { select: { title: true } }, request: { select: { title: true } } },
+    orderBy: { createdAt: 'desc' },
+    take: 500,
+  });
+  const total = rows.reduce((s, f) => s + f.size, 0);
+  return (
+    <>
+      <PageHead title="Fichiers" text={`${rows.length} fichier${rows.length > 1 ? 's' : ''}, ${(total / 1024 / 1024).toFixed(1)} Mo au total. Pour déposer un livrable, ouvrez le projet concerné.`} />
+      <FileList admin files={rows.map(f => ({
+        id: f.id, originalName: f.originalName, size: f.size, createdAt: f.createdAt, mine: true, byNexora: f.owner.role === 'ADMIN',
+        context: [`${f.owner.firstName} ${f.owner.lastName}`, f.project ? `projet « ${f.project.title} »` : f.request ? `demande « ${f.request.title} »` : ''].filter(Boolean).join(', '),
+      }))} />
+    </>
+  );
+}

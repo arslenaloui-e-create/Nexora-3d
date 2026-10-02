@@ -1,3 +1,26 @@
-'use client';
-import {useState} from 'react';import {useRouter} from 'next/navigation';
-export default function Register(){const [m,setM]=useState('');const [loading,setLoading]=useState(false);const r=useRouter();async function submit(e:React.FormEvent<HTMLFormElement>){e.preventDefault();setM('');setLoading(true);try{const res=await fetch('/api/auth/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(Object.fromEntries(new FormData(e.currentTarget)))});const j=await res.json();if(res.ok){setM(j.message);setTimeout(()=>r.push('/auth/login'),900)}else setM(j.error||'Erreur')}catch{setM('Impossible de créer le compte pour le moment.')}finally{setLoading(false)}}return <main><section className="section"><div className="container"><div className="card" style={{maxWidth:650,margin:'auto'}}><div className="eyebrow">Nouveau client</div><h1>Créer un compte</h1><form className="form" onSubmit={submit}><div className="split"><div className="field"><label htmlFor="firstName">Prénom</label><input id="firstName" name="firstName" autoComplete="given-name" required/></div><div className="field"><label htmlFor="lastName">Nom</label><input id="lastName" name="lastName" autoComplete="family-name" required/></div></div><div className="field"><label htmlFor="email">Email</label><input id="email" name="email" type="email" autoComplete="email" required/></div><div className="field"><label htmlFor="phone">Téléphone</label><input id="phone" name="phone" type="tel" autoComplete="tel"/></div><div className="field"><label htmlFor="company">Entreprise (facultatif)</label><input id="company" name="company" autoComplete="organization"/></div><div className="field"><label htmlFor="password">Mot de passe</label><input id="password" name="password" type="password" minLength={8} autoComplete="new-password" required/><small className="muted">8 caractères minimum.</small></div><div className="field"><label htmlFor="confirmPassword">Confirmer le mot de passe</label><input id="confirmPassword" name="confirmPassword" type="password" minLength={8} autoComplete="new-password" required/></div><button className="btn" disabled={loading}>{loading?'Création…':'Créer mon compte'}</button>{m&&<div className="notice">{m}</div>}</form></div></div></section></main>}
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import { safeNext } from '@/lib/api';
+import RegisterForm from './RegisterForm';
+
+export const metadata: Metadata = { title: 'Créer un compte' };
+
+export default async function Register({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
+  const next = safeNext((await searchParams).next);
+  return (
+    <main className="auth">
+      <div className="wrap" style={{ display: 'grid', placeItems: 'center' }}>
+        <div className="auth-card wide">
+          <div style={{ display: 'grid', gap: 8 }}>
+            <h1>Créer un compte</h1>
+            <p className="muted">Votre espace client regroupe vos demandes de devis, projets, fichiers et messages.</p>
+          </div>
+          <RegisterForm next={next} />
+          <div className="auth-foot">
+            <span>Déjà un compte ? <Link className="link" href={`/auth/login${next ? `?next=${encodeURIComponent(next)}` : ''}`}>Se connecter</Link></span>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}

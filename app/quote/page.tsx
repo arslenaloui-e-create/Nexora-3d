@@ -1,204 +1,49 @@
-"use client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-const services = [
-  "CAO",
-  "Modélisation 3D",
-  "Impression 3D",
-  "Prototypage",
-  "Conception mécanique",
-  "Autre",
-];
-export default function Quote() {
-  const [m, setM] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState(1);
-  const r = useRouter();
-  async function submit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (loading) return;
-    setM("");
-    setLoading(true);
-    const form = e.currentTarget;
-    const fd = new FormData(form);
-    const files = fd
-      .getAll("files")
-      .filter((x) => x instanceof File && x.size > 0) as File[];
-    const body = Object.fromEntries(
-      [...fd.entries()].filter(([k]) => k !== "files"),
-    );
-    try {
-      const res = await fetch("/api/quote-requests", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const j = await res.json();
-      if (res.status === 401) {
-        r.push("/auth/login?next=/quote");
-        return;
-      }
-      if (!res.ok) {
-        setM(j.error || "Demande invalide.");
-        return;
-      }
-      if (files.length) {
-        const upload = new FormData();
-        upload.append("requestId", j.id);
-        files.forEach((file) => upload.append("files", file));
-        const up = await fetch("/api/files", { method: "POST", body: upload });
-        if (!up.ok) {
-          const uj = await up.json().catch(() => ({}));
-          setM(
-            `Demande créée, mais les fichiers n'ont pas pu être envoyés : ${uj.error || "erreur inconnue"}`,
-          );
-          return;
-        }
-      }
-      setM("Votre demande a bien été envoyée.");
-      form.reset();
-      setStep(1);
-    } catch {
-      setM("Impossible d’envoyer la demande pour le moment.");
-    } finally {
-      setLoading(false);
-    }
-  }
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import { getSession } from '@/lib/auth';
+import { ACCEPT } from '@/lib/files';
+import QuoteForm from './QuoteForm';
+
+export const metadata: Metadata = { title: 'Demander un devis', description: 'Décrivez votre pièce ou votre projet et joignez vos fichiers : Nexora 3D vous répond avec un devis.' };
+
+export default async function Quote() {
+  const session = await getSession();
   return (
-    <main>
-      <section className="section">
-        <div className="container">
-          <div className="eyebrow">Devis / 01—05</div>
-          <h1>Décrivez votre projet</h1>
-          <p className="lead">
-            Un parcours guidé pour transmettre les informations techniques
-            essentielles à NEXORA 3D.
-          </p>
-          <div className="card" style={{ maxWidth: 820, marginTop: 28 }}>
-            <div className="quoteSteps" aria-label="Progression">
-              <span className={step >= 1 ? "active" : ""}>01 Service</span>
-              <span className={step >= 2 ? "active" : ""}>02 Projet</span>
-              <span className={step >= 3 ? "active" : ""}>03 Fichiers</span>
-              <span className={step >= 4 ? "active" : ""}>04 Client</span>
-            </div>
-            <form className="form" onSubmit={submit}>
-              <div className="field">
-                <label htmlFor="serviceType">Type de service</label>
-                <select
-                  id="serviceType"
-                  name="serviceType"
-                  required
-                  onChange={() => setStep(2)}
-                  defaultValue=""
-                >
-                  <option value="" disabled>
-                    Choisir un service
-                  </option>
-                  {services.map((x) => (
-                    <option key={x}>{x}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="field">
-                <label htmlFor="title">Titre du projet</label>
-                <input
-                  id="title"
-                  name="title"
-                  required
-                  onFocus={() => setStep(2)}
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="description">Description du besoin</label>
-                <textarea
-                  id="description"
-                  name="description"
-                  required
-                  minLength={10}
-                  onFocus={() => setStep(2)}
-                />
-              </div>
-              <div className="split">
-                <div className="field">
-                  <label htmlFor="dimensions">Dimensions</label>
-                  <input
-                    id="dimensions"
-                    name="dimensions"
-                    placeholder="Ex. 120 × 80 × 35 mm"
-                  />
-                </div>
-                <div className="field">
-                  <label htmlFor="quantity">Quantité</label>
-                  <input
-                    id="quantity"
-                    name="quantity"
-                    type="number"
-                    min="1"
-                    step="1"
-                  />
+    <main className="page">
+      <div className="wrap">
+        <header className="page-head">
+          <h1>Demander un devis</h1>
+          <p className="lead">Décrivez la pièce ou le projet. Plus il y a de détails (cotes, usage, matériau, fichiers), plus le devis sera précis.</p>
+        </header>
+        <div className="quote-layout">
+          <div>
+            {!session && (
+              <div className="empty" style={{ marginBottom: 24 }}>
+                <strong>Un compte client est nécessaire pour envoyer une demande.</strong>
+                <span>Il sert à vous transmettre le devis, les fichiers et l’avancement du projet. La création prend une minute.</span>
+                <div className="actions">
+                  <Link className="btn btn-primary" href="/auth/register?next=/quote">Créer mon compte</Link>
+                  <Link className="btn btn-quiet" href="/auth/login?next=/quote">J’ai déjà un compte</Link>
                 </div>
               </div>
-              <div className="split">
-                <div className="field">
-                  <label htmlFor="material">Matériau</label>
-                  <input
-                    id="material"
-                    name="material"
-                    placeholder="Ex. PLA, PETG, aluminium…"
-                  />
-                </div>
-                <div className="field">
-                  <label htmlFor="tolerance">Précision / tolérance</label>
-                  <input
-                    id="tolerance"
-                    name="tolerance"
-                    placeholder="Ex. ±0,1 mm"
-                  />
-                </div>
-              </div>
-              <div className="field">
-                <label htmlFor="files">Fichiers techniques</label>
-                <input
-                  id="files"
-                  name="files"
-                  type="file"
-                  multiple
-                  accept=".stl,.step,.stp,.sldprt,.sldasm,.obj,.3mf,.pdf,.zip,.png,.jpg,.jpeg,.webp"
-                  onChange={() => setStep(3)}
-                />
-                <small className="muted">
-                  Formats CAO, 3D, PDF et images autorisés selon la
-                  configuration serveur.
-                </small>
-              </div>
-              <div className="split">
-                <div className="field">
-                  <label htmlFor="budget">Budget indicatif (TND)</label>
-                  <input
-                    id="budget"
-                    name="budget"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-                <div className="field">
-                  <label htmlFor="deadline">Délai souhaité</label>
-                  <input id="deadline" name="deadline" type="date" />
-                </div>
-              </div>
-              <div className="notice">
-                Vos coordonnées sont reprises depuis votre compte client. Vous
-                pourrez compléter votre profil depuis votre espace.
-              </div>
-              <button className="btn" disabled={loading}>
-                {loading ? "Envoi en cours…" : "Envoyer la demande"}
-              </button>
-              {m && <div className="notice">{m}</div>}
-            </form>
+            )}
+            {session?.role === 'ADMIN' ? (
+              <div className="alert alert-info">Vous êtes connecté en administrateur. Les devis se créent depuis <Link href="/admin/quotes">Administration › Devis</Link>.</div>
+            ) : (
+              <QuoteForm loggedIn={Boolean(session)} accept={ACCEPT} maxMb={Number(process.env.MAX_UPLOAD_MB || 50)} />
+            )}
           </div>
+          <aside className="quote-aside">
+            <h2 style={{ fontSize: '1.3rem' }}>Ce qui se passe ensuite</h2>
+            <ol>
+              <li>Nous étudions votre demande et revenons vers vous si une précision manque.</li>
+              <li>Le devis arrive dans votre espace client, en PDF.</li>
+              <li>Vous l’acceptez en un clic, et le projet démarre.</li>
+            </ol>
+            <p className="muted small">Pas de fichier ? Une photo ou un croquis coté suffit pour commencer.</p>
+          </aside>
         </div>
-      </section>
+      </div>
     </main>
   );
 }

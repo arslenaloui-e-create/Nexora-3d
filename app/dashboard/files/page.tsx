@@ -1,1 +1,32 @@
-'use client';import {useEffect,useState} from 'react';export default function Files(){const [files,setFiles]=useState<any[]>([]);const [m,setM]=useState('');async function load(){const r=await fetch('/api/files/list');if(r.ok)setFiles(await r.json())}useEffect(()=>{load()},[]);async function upload(e:any){e.preventDefault();const fd=new FormData(e.currentTarget);const r=await fetch('/api/files',{method:'POST',body:fd});const j=await r.json();setM(j.message||j.error);if(r.ok){e.currentTarget.reset();load()}}return <><div className="topbar"><h1>Fichiers</h1></div><form className="card form" onSubmit={upload}><div className="field"><label>Fichiers techniques</label><input name="files" type="file" multiple accept=".stl,.step,.stp,.sldprt,.sldasm,.obj,.3mf,.pdf,.zip,.png,.jpg,.jpeg,.webp" required/></div><button className="btn">Envoyer</button>{m&&<div className="notice">{m}</div>}</form><div style={{marginTop:20}} className="tableWrap"><table className="table"><thead><tr><th>Nom</th><th>Taille</th><th>Date</th><th></th></tr></thead><tbody>{files.map(f=><tr key={f.id}><td>{f.originalName}</td><td>{(f.size/1024/1024).toFixed(2)} MB</td><td>{new Date(f.createdAt).toLocaleDateString('fr-FR')}</td><td><a className="btn alt" href={`/api/files/${f.id}`}>Télécharger</a> <button type="button" className="btn danger" onClick={async()=>{await fetch(`/api/files/${f.id}`,{method:"DELETE"});load()}}>Supprimer</button></td></tr>)}</tbody></table></div></>}
+import { db } from '@/lib/db';
+import { pageUser } from '@/lib/guard';
+import { PageHead } from '@/components/ui';
+import FileList from '@/components/FileList';
+import UploadForm from '@/components/UploadForm';
+
+export default async function Files() {
+  const u = await pageUser('CLIENT');
+  const [files, projects] = await Promise.all([
+    db.fileAsset.findMany({
+      where: { OR: [{ ownerId: u.id }, { project: { clientId: u.id } }, { request: { clientId: u.id } }] },
+      include: { owner: { select: { role: true } }, project: { select: { title: true } }, request: { select: { title: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 300,
+    }),
+    db.project.findMany({ where: { clientId: u.id, status: { not: 'ARCHIVED' } }, select: { id: true, title: true }, orderBy: { updatedAt: 'desc' } }),
+  ]);
+
+  return (
+    <>
+      <PageHead title="Fichiers" text="Vos fichiers envoyés et les livrables déposés par Nexora 3D." />
+      <section className="panel">
+        <UploadForm projects={projects} label="Envoyer des fichiers" />
+      </section>
+      <FileList files={files.map(f => ({
+        id: f.id, originalName: f.originalName, size: f.size, createdAt: f.createdAt,
+        mine: f.ownerId === u.id, byNexora: f.owner.role === 'ADMIN',
+        context: f.project ? `Projet : ${f.project.title}` : f.request ? `Demande : ${f.request.title}` : undefined,
+      }))} />
+    </>
+  );
+}

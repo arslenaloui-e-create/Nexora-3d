@@ -1,2 +1,45 @@
-import {NextResponse} from 'next/server';import {db} from '@/lib/db';import {hashPassword,hashToken,randomToken} from '@/lib/security';import {registerSchema} from '@/lib/validators';import {sendMail} from '@/lib/mail';
-export async function POST(req:Request){try{const d=registerSchema.parse(await req.json());const email=d.email.toLowerCase();if(await db.user.findUnique({where:{email}}))return NextResponse.json({error:'Un compte existe déjà avec cet email.'},{status:409});const u=await db.user.create({data:{firstName:d.firstName,lastName:d.lastName,email,phone:d.phone||null,company:d.company||null,passwordHash:await hashPassword(d.password)}});const raw=randomToken();await db.emailVerificationToken.create({data:{userId:u.id,tokenHash:hashToken(raw),expiresAt:new Date(Date.now()+86400000)}});const url=`${process.env.APP_URL||'http://localhost:3000'}/api/auth/verify?token=${raw}`;await sendMail(email,'Vérification de votre compte Nexora 3D',`<p>Bienvenue sur Nexora 3D.</p><p>Confirmez votre email : <a href="${url}">${url}</a></p>`);return NextResponse.json({message:'Compte créé. Vérifiez votre email si le SMTP est configuré, puis connectez-vous.'})}catch{return NextResponse.json({error:'Données invalides.'},{status:400})}}
+import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { hashPassword } from "@/lib/security";
+import { registerSchema } from "@/lib/validators";
+import { rateLimit } from "@/lib/rate-limit";
+import { apiError, clientIp, jsonError } from "@/lib/api";
+
+export async function POST(req: Request) {
+  try {
+    if (!rateLimit(`register:${clientIp(req)}`, 5, 60 * 60_000)) {
+      return jsonError(
+        "Trop de comptes créés depuis cette connexion. Réessayez plus tard.",
+        429,
+      );
+    }
+
+    const d = registerSchema.parse(await req.json());
+    const email = d.email.toLowerCase().trim();
+
+    if (await db.user.findUnique({ where: { email } })) {
+      return jsonError(
+        "Un compte existe déjà avec cet email. Connectez-vous ou réinitialisez votre mot de passe.",
+        409,
+      );
+    }
+
+    await db.user.create({
+      data: {
+        firstName: d.firstName,
+        lastName: d.lastName,
+        email,
+        phone: d.phone || null,
+        company: d.company || null,
+        passwordHash: await hashPassword(d.password),
+        status: "ACTIVE",
+      },
+    });
+
+    return NextResponse.json({
+      message: "Votre compte Nexora 3D a été créé avec succès.",
+    });
+  } catch (e) {
+    return apiError(e, "Impossible de créer le compte pour le moment.");
+  }
+}

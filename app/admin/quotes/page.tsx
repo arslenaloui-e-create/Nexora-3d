@@ -1,1 +1,27 @@
-'use client';import {useEffect,useState} from 'react';export default function Quotes(){const [rows,setRows]=useState<any[]>([]);const [clients,setClients]=useState<any[]>([]);const [m,setM]=useState('');async function load(){const [q,u]=await Promise.all([fetch('/api/admin/quotes').then(r=>r.json()),fetch('/api/admin/users').then(r=>r.json())]);setRows(q);setClients(u.filter((x:any)=>x.role==='CLIENT'))}useEffect(()=>{load()},[]);async function create(e:any){e.preventDefault();const fd=new FormData(e.currentTarget);const d:any=Object.fromEntries(fd);d.lines=[{description:d.description,quantity:d.quantity,unitPrice:d.unitPrice}];d.sendEmail=fd.get('sendEmail')==='on';const r=await fetch('/api/admin/quotes',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(d)});const j=await r.json();setM(r.ok?'Devis créé.':j.error||'Erreur');if(r.ok){e.currentTarget.reset();load()}}return <><h1>Devis</h1><form className="card form" onSubmit={create}><h3>Créer un devis</h3><div className="field"><label>Client</label><select name="clientId" required>{clients.map(c=><option key={c.id} value={c.id}>{c.firstName} {c.lastName} — {c.email}</option>)}</select></div><div className="field"><label>Demande (optionnel)</label><input name="requestId"/></div><div className="field"><label>Prestation</label><input name="description" required/></div><div className="split"><div className="field"><label>Quantité</label><input name="quantity" type="number" step="0.01" defaultValue="1"/></div><div className="field"><label>Prix unitaire TND</label><input name="unitPrice" type="number" step="0.01" required/></div></div><div className="split"><div className="field"><label>Remise TND</label><input name="discount" type="number" step="0.01" defaultValue="0"/></div><div className="field"><label>TVA %</label><input name="taxRate" type="number" step="0.01" defaultValue="19"/></div></div><div className="field"><label>Validité</label><input name="validUntil" type="date" required/></div><div className="field"><label>Conditions</label><textarea name="conditions" defaultValue="Paiement selon accord entre les parties."/></div><label><input name="sendEmail" type="checkbox"/> Envoyer une notification email</label><button className="btn">Créer le devis</button>{m&&<div className="notice">{m}</div>}</form><div className="tableWrap" style={{marginTop:20}}><table className="table"><thead><tr><th>Numéro</th><th>Client</th><th>HT</th><th>TTC</th><th>Statut</th><th>PDF</th></tr></thead><tbody>{rows.map(x=><tr key={x.id}><td>{x.number}</td><td>{x.client.firstName} {x.client.lastName}</td><td>{Number(x.totalHT).toFixed(2)}</td><td>{Number(x.totalTTC).toFixed(2)}</td><td>{x.status}</td><td><a className="btn alt" href={`/api/quotes/${x.id}`}>PDF</a></td></tr>)}</tbody></table></div></>}
+import { db } from '@/lib/db';
+import { pageUser } from '@/lib/guard';
+import { getSite } from '@/lib/site';
+import { PageHead } from '@/components/ui';
+import QuotesAdmin from './QuotesAdmin';
+
+export default async function Quotes({ searchParams }: { searchParams: Promise<{ request?: string; new?: string }> }) {
+  await pageUser('ADMIN');
+  const sp = await searchParams;
+  const [quotes, clients, requests, site] = await Promise.all([
+    db.quote.findMany({ include: { client: { select: { firstName: true, lastName: true } }, request: { select: { title: true } }, lines: true }, orderBy: { createdAt: 'desc' }, take: 500 }),
+    db.user.findMany({ where: { role: 'CLIENT', status: 'ACTIVE' }, select: { id: true, firstName: true, lastName: true, email: true }, orderBy: { lastName: 'asc' } }),
+    db.quoteRequest.findMany({ where: { status: { notIn: ['CLOSED', 'REJECTED'] } }, select: { id: true, title: true, clientId: true, serviceType: true, quantity: true }, orderBy: { createdAt: 'desc' } }),
+    getSite(),
+  ]);
+  const rows = quotes.map(q => ({
+    id: q.id, number: q.number, status: q.status, clientName: `${q.client.firstName} ${q.client.lastName}`, requestTitle: q.request?.title || null,
+    totalHT: Number(q.totalHT), totalTTC: Number(q.totalTTC), validUntil: q.validUntil.toISOString(), createdAt: q.createdAt.toISOString(), lines: q.lines.length,
+  }));
+  const preset = requests.find(r => r.id === sp.request) || null;
+  return (
+    <>
+      <PageHead title="Devis" text="Préparez un devis, enregistrez-le en brouillon ou envoyez-le directement au client." />
+      <QuotesAdmin rows={rows} clients={clients} requests={requests} taxRate={site.taxRate} preset={preset} startOpen={Boolean(preset || sp.new)} />
+    </>
+  );
+}

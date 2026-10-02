@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
-
-const secret = new TextEncoder().encode(process.env.AUTH_SECRET || 'dev-only-change-me');
+import { authSecret } from './lib/secret';
 
 export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
@@ -18,7 +17,7 @@ export async function middleware(req: NextRequest) {
   }
 
   try {
-    const p = await jwtVerify(token, secret);
+    const p = await jwtVerify(token, authSecret());
     const id = String(p.payload.id || '');
     const role = String(p.payload.role || '');
 

@@ -1,1 +1,41 @@
-'use client';import {useEffect,useState} from 'react';export default function Users(){const [rows,setRows]=useState<any[]>([]);async function load(){setRows(await (await fetch('/api/admin/users')).json())}useEffect(()=>{load()},[]);async function toggle(x:any){await fetch('/api/admin/users',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({id:x.id,status:x.status==='ACTIVE'?'DISABLED':'ACTIVE'})});load()}return <><h1>Utilisateurs</h1><div className="tableWrap"><table className="table"><thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Statut</th><th></th></tr></thead><tbody>{rows.map(x=><tr key={x.id}><td>{x.firstName} {x.lastName}</td><td>{x.email}</td><td>{x.role}</td><td>{x.status}</td><td><button className="btn alt" onClick={()=>toggle(x)}>{x.status==='ACTIVE'?'Désactiver':'Activer'}</button></td></tr>)}</tbody></table></div></>}
+import { db } from '@/lib/db';
+import { pageUser } from '@/lib/guard';
+import { ROLE, USER_STATUS, date } from '@/lib/labels';
+import { PageHead, Pill } from '@/components/ui';
+import UserToggle from './UserToggle';
+
+export default async function Users() {
+  const me = await pageUser('ADMIN');
+  const rows = await db.user.findMany({ orderBy: [{ role: 'asc' }, { createdAt: 'desc' }], take: 500 });
+  return (
+    <>
+      <PageHead title="Utilisateurs" text="Un compte désactivé ne peut plus se connecter ; ses données sont conservées." />
+      <div className="table-wrap">
+        <table className="table stack">
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Email</th>
+              <th>Rôle</th>
+              <th>Statut</th>
+              <th>Créé le</th>
+              <th><span className="skip">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(u => (
+              <tr key={u.id}>
+                <td data-label="Nom"><strong>{u.firstName} {u.lastName}</strong>{u.id === me.id && <span className="sub">C’est vous</span>}</td>
+                <td data-label="Email">{u.email}</td>
+                <td data-label="Rôle">{ROLE[u.role]}</td>
+                <td data-label="Statut"><Pill map={USER_STATUS} value={u.status} /></td>
+                <td data-label="Créé le">{date(u.createdAt)}</td>
+                <td data-label="">{u.id !== me.id && <UserToggle id={u.id} active={u.status === 'ACTIVE'} name={`${u.firstName} ${u.lastName}`} />}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}

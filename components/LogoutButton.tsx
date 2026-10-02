@@ -11,18 +11,17 @@ export default function LogoutButton() {
     if (loading) return;
     setLoading(true);
     try {
-      const response = await fetch('/api/auth/logout', { method: 'POST' });
-      if (!response.ok) throw new Error('Logout failed');
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } finally {
+      // Même si l'appel échoue, on quitte l'espace : le cookie expiré ne donne plus accès.
       router.replace('/auth/login');
       router.refresh();
-    } catch {
-      setLoading(false);
     }
   }
 
   return (
-    <button type="button" className="btn alt" style={{ marginTop: 12 }} onClick={logout} disabled={loading}>
-      {loading ? 'Déconnexion…' : 'Déconnexion'}
-    </button>
+    <div className="logout">
+      <button type="button" className="btn btn-quiet btn-sm" onClick={logout} disabled={loading}>{loading ? 'Déconnexion…' : 'Se déconnecter'}</button>
+    </div>
   );
 }

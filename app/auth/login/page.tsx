@@ -1,1 +1,56 @@
-'use client';import {useState} from 'react';import {useRouter} from 'next/navigation';export default function Login(){const [m,setM]=useState('');const [loading,setLoading]=useState(false);const r=useRouter();async function submit(e:any){e.preventDefault();setLoading(true);const body=Object.fromEntries(new FormData(e.currentTarget));const res=await fetch('/api/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});const j=await res.json();setLoading(false);if(res.ok)r.push(j.role==='ADMIN'?'/admin':'/dashboard');else setM(j.error||'Connexion impossible')}return <main><section className="section"><div className="container"><div className="card" style={{maxWidth:520,margin:'auto'}}><div className="eyebrow">Espace sécurisé</div><h1>Connexion</h1><form className="form" onSubmit={submit}><div className="field"><label>Email</label><input name="email" type="email" required/></div><div className="field"><label>Mot de passe</label><input name="password" type="password" required/></div><button className="btn">{loading?'Connexion…':'Se connecter'}</button>{m&&<div className="notice error">{m}</div>}</form><p className="lead"><a href="/auth/forgot" style={{color:'var(--accent)'}}>Mot de passe oublié ?</a></p><p className="lead">Pas encore de compte ? <a href="/auth/register" style={{color:'var(--accent)'}}>Créer un compte</a></p></div></div></section></main>}
+import type { Metadata } from "next";
+import Link from "next/link";
+import { safeNext } from "@/lib/api";
+import LoginForm from "./LoginForm";
+
+export const metadata: Metadata = { title: "Connexion" };
+
+type Props = {
+  searchParams: Promise<{
+    next?: string;
+    registered?: string;
+  }>;
+};
+
+export default async function Login({ searchParams }: Props) {
+  const sp = await searchParams;
+  const next = safeNext(sp.next);
+
+  const info = sp.registered
+    ? "Compte créé avec succès. Vous pouvez maintenant vous connecter."
+    : "";
+  return (
+    <main className="auth">
+      <div className="wrap" style={{ display: "grid", placeItems: "center" }}>
+        <div className="auth-card">
+          <div style={{ display: "grid", gap: 8 }}>
+            <h1>Connexion</h1>
+            <p className="muted">
+              Accédez à vos devis, projets, fichiers et messages.
+            </p>
+          </div>
+          {info && (
+            <div className="alert alert-ok" role="status">
+              {info}
+            </div>
+          )}
+          <LoginForm next={next} />
+          <div className="auth-foot">
+            <Link className="link" href="/auth/forgot">
+              Mot de passe oublié ?
+            </Link>
+            <span>
+              Pas encore de compte ?{" "}
+              <Link
+                className="link"
+                href={`/auth/register${next ? `?next=${encodeURIComponent(next)}` : ""}`}
+              >
+                Créer un compte
+              </Link>
+            </span>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}

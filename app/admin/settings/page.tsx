@@ -1,1 +1,23 @@
-'use client';import {useEffect,useState} from 'react';export default function Settings(){const [s,setS]=useState<any>(null);const [m,setM]=useState('');useEffect(()=>{fetch('/api/admin/settings').then(r=>r.json()).then(setS)},[]);async function save(e:any){e.preventDefault();const d=Object.fromEntries(new FormData(e.currentTarget));const r=await fetch('/api/admin/settings',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(d)});setM(r.ok?'Paramètres enregistrés.':'Erreur')}if(!s)return <p className="lead">Chargement…</p>;return <><h1>Paramètres</h1><form className="form" onSubmit={save}><div className="field"><label>Email</label><input name="email" defaultValue={s.email}/></div><div className="field"><label>Téléphone</label><input name="phone" defaultValue={s.phone||''}/></div><div className="split"><div className="field"><label>Instagram</label><input name="instagram" defaultValue={s.instagram||''}/></div><div className="field"><label>LinkedIn</label><input name="linkedin" defaultValue={s.linkedin||''}/></div></div><div className="field"><label>Description</label><textarea name="description" defaultValue={s.description}/></div><div className="field"><label>TVA par défaut</label><input name="taxRate" type="number" step="0.01" defaultValue={s.taxRate}/></div><button className="btn">Enregistrer</button>{m&&<div className="notice">{m}</div>}</form></>}
+import { db } from '@/lib/db';
+import { pageUser } from '@/lib/guard';
+import { getSite } from '@/lib/site';
+import { PageHead } from '@/components/ui';
+import SettingsForm from './SettingsForm';
+
+export default async function Settings() {
+  await pageUser('ADMIN');
+  const [s, site] = await Promise.all([db.siteSettings.findUnique({ where: { id: 1 } }), getSite()]);
+  return (
+    <>
+      <PageHead title="Paramètres" text="Coordonnées affichées sur le site et sur les devis PDF." />
+      <SettingsForm initial={{
+        email: s?.email || site.email,
+        phone: s?.phone || site.phone,
+        instagram: s?.instagram || site.instagram,
+        linkedin: s?.linkedin || site.linkedin,
+        description: s?.description || site.description,
+        taxRate: Number(s?.taxRate ?? 19),
+      }} />
+    </>
+  );
+}

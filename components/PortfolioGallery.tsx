@@ -1,69 +1,59 @@
 'use client';
 
-import { useState } from 'react';
-import Link from 'next/link';
+import { useCallback, useEffect, useState } from 'react';
+import { PlateImage } from './Plate';
 
 export default function PortfolioGallery({ title, images }: { title: string; images: string[] }) {
-  const validImages = images.filter(Boolean);
   const [active, setActive] = useState(0);
-  const [lightbox, setLightbox] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [zoom, setZoom] = useState(false);
+  const many = images.length > 1;
+  const move = useCallback((d: number) => setActive(v => (v + d + images.length) % images.length), [images.length]);
 
-  if (!validImages.length) {
-    return <div className="portfolioDetailEmpty">Aucune vue n'est disponible pour ce projet.</div>;
-  }
+  useEffect(() => {
+    if (!zoom) return;
+    document.body.classList.add('no-scroll');
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setZoom(false);
+      if (e.key === 'ArrowLeft') move(-1);
+      if (e.key === 'ArrowRight') move(1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => { document.body.classList.remove('no-scroll'); window.removeEventListener('keydown', onKey); };
+  }, [zoom, move]);
 
-  const move = (direction: number) => setActive(value => (value + direction + validImages.length) % validImages.length);
+  if (!images.length) return <div className="empty"><strong>Pas encore de vue pour ce projet.</strong></div>;
+  const alt = `${title}, vue ${active + 1} sur ${images.length}`;
 
   return (
-    <>
-      <div className="portfolioDetailGallery">
-        <div className="portfolioDetailMain">
-          {!failed ? (
-            <img src={validImages[active]} alt={`${title} — vue ${active + 1}`} onError={() => setFailed(true)} />
-          ) : (
-            <div className="portfolioImageFallback"><span>NXR / 3D</span><small>APERÇU INDISPONIBLE</small></div>
-          )}
-          {validImages.length > 1 && (
-            <>
-              <button type="button" className="portfolioDetailArrow prev" onClick={() => move(-1)} aria-label="Image précédente">‹</button>
-              <button type="button" className="portfolioDetailArrow next" onClick={() => move(1)} aria-label="Image suivante">›</button>
-            </>
-          )}
-          <button type="button" className="portfolioDetailZoom" onClick={() => setLightbox(true)} aria-label="Agrandir l'image">⤢</button>
-          <span className="portfolioDetailCounter">{active + 1} / {validImages.length}</span>
-        </div>
-
-        {validImages.length > 1 && (
-          <div className="portfolioDetailThumbs" aria-label="Sélection des vues">
-            {validImages.map((src, index) => (
-              <button key={`${src}-${index}`} type="button" className={index === active ? 'active' : ''} onClick={() => setActive(index)} aria-label={`Vue ${index + 1}`}>
-                <img src={src} alt="" loading="lazy" />
-              </button>
-            ))}
-          </div>
-        )}
+    <div className="viewer sheet">
+      <div className="viewer-main">
+        <button type="button" className="viewer-zoom" onClick={() => setZoom(true)} aria-label="Agrandir l’image">
+          <PlateImage key={images[active]} src={images[active]} alt={alt} priority />
+        </button>
+        {many && <>
+          <button type="button" className="viewer-nav prev" onClick={() => move(-1)} aria-label="Vue précédente">‹</button>
+          <button type="button" className="viewer-nav next" onClick={() => move(1)} aria-label="Vue suivante">›</button>
+        </>}
       </div>
-
-      {lightbox && (
-        <div className="portfolioDetailLightbox" role="dialog" aria-modal="true" aria-label={`Galerie ${title}`}>
-          <button className="portfolioDetailBackdrop" type="button" onClick={() => setLightbox(false)} aria-label="Fermer" />
-          <div className="portfolioDetailLightboxInner">
-            <div className="portfolioDetailLightboxTop">
-              <span>NEXORA 3D / PROJECT VIEW</span>
-              <button type="button" onClick={() => setLightbox(false)} aria-label="Fermer">×</button>
-            </div>
-            <img src={validImages[active]} alt={`${title} — vue ${active + 1}`} />
-            {validImages.length > 1 && (
-              <>
-                <button type="button" className="portfolioDetailLightboxArrow prev" onClick={() => move(-1)} aria-label="Image précédente">‹</button>
-                <button type="button" className="portfolioDetailLightboxArrow next" onClick={() => move(1)} aria-label="Image suivante">›</button>
-              </>
-            )}
-          </div>
+      {many && (
+        <div className="viewer-thumbs">
+          {images.map((src, i) => (
+            <button key={src + i} type="button" aria-current={i === active} aria-label={`Vue ${i + 1}`} onClick={() => setActive(i)}>
+              <img src={src} alt="" loading="lazy" />
+            </button>
+          ))}
         </div>
       )}
-      <div className="portfolioDetailBack"><Link href="/portfolio">← Retour au portfolio</Link></div>
-    </>
+      {zoom && (
+        <div className="lightbox" role="dialog" aria-modal="true" aria-label={alt} onClick={e => e.target === e.currentTarget && setZoom(false)}>
+          <img src={images[active]} alt={alt} />
+          <button type="button" className="btn btn-quiet close" style={{ background: 'var(--sheet)' }} onClick={() => setZoom(false)} autoFocus>Fermer</button>
+          {many && <>
+            <button type="button" className="viewer-nav prev" onClick={() => move(-1)} aria-label="Vue précédente">‹</button>
+            <button type="button" className="viewer-nav next" onClick={() => move(1)} aria-label="Vue suivante">›</button>
+          </>}
+        </div>
+      )}
+    </div>
   );
 }
