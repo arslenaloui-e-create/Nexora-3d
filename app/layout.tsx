@@ -16,7 +16,11 @@ export const metadata: Metadata = {
   icons: { icon: '/logo.jpg' },
 };
 
-export const viewport: Viewport = { width: 'device-width', initialScale: 1, themeColor: '#f8f9f7' };
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#070b10'
+};
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const [session, site] = await Promise.all([getSession(), getSite()]);
