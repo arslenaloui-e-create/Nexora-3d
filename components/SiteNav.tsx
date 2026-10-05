@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import ThemeToggle from "@/components/ThemeToggle";
 
 const links = [
   ['/services', 'Services'],
@@ -41,6 +42,7 @@ export default function SiteNav({ role, logoPath }: { role: 'ADMIN' | 'CLIENT' |
           {links.map(([href, label]) => <Link key={href} href={href} aria-current={current(href)}>{label}</Link>)}
           {!role && <Link href="/auth/login" aria-current={current('/auth/login')}>Connexion</Link>}
           {account}
+          <ThemeToggle />
         </nav>
         <button className="menu-btn" type="button" aria-label={open ? 'Fermer le menu' : 'Ouvrir le menu'} aria-expanded={open} aria-controls="menu-mobile" onClick={() => setOpen(v => !v)}>
           <span />
@@ -52,6 +54,7 @@ export default function SiteNav({ role, logoPath }: { role: 'ADMIN' | 'CLIENT' |
           {links.map(([href, label]) => <Link key={href} href={href} aria-current={current(href)}>{label}</Link>)}
           {!role && <Link href="/auth/login">Connexion</Link>}
           {account}
+          <ThemeToggle />
         </nav>
       )}
     </header>

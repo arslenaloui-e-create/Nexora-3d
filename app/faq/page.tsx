@@ -22,7 +22,17 @@ export default async function FAQ() {
           <section className="faq-group" key={category}>
             {groups.size > 1 && <h2>{category}</h2>}
             <div className="faq-list">
-              {items.map(f => <details key={f.id}><summary>{f.question}</summary><p>{f.answer}</p></details>)}
+              {items.map(f => (
+                <details key={f.id}>
+                  <summary>
+                    <span>{f.question}</span>
+                    <span className="faq-plus" aria-hidden="true">+</span>
+                  </summary>
+                  <div className="faq-answer">
+                    <p>{f.answer}</p>
+                  </div>
+                </details>
+              ))}
             </div>
           </section>
         ))}

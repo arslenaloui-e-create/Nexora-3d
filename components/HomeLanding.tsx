@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Plate, { PlateImage, type PlateItem } from './Plate';
 import type { Site } from '@/lib/site';
+import Hero3DViewer from './Hero3DViewer';
 
 type Faq = { id: string; question: string; answer: string };
 
@@ -36,8 +37,7 @@ export default function HomeLanding({ items, total, faqs, site }: { items: Plate
                 </div>
               </div>
               <div className="hero-figure">
-                <ConstructionLines />
-                {hero && <PlateImage src={hero.images[0]} alt={hero.title} priority />}
+                <Hero3DViewer />
               </div>
             </div>
             {hero && (

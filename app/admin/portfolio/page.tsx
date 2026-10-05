@@ -9,6 +9,7 @@ type Form = { title: string; description: string; category: string; technologies
 
 const empty: Form = { title: '', description: '', category: 'CAO', technologies: 'SolidWorks', tags: '', images: [], sortOrder: 0, visible: true };
 
+
 function parse(value: string) {
   try { const v = JSON.parse(value || '[]'); return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []; } catch { return []; }
 }
@@ -21,6 +22,7 @@ export default function PortfolioAdmin() {
   const [notice, setNotice] = useState<NoticeState>(null);
   const [loading, setLoading] = useState(false);
   const [manual, setManual] = useState('');
+  const [actionId, setActionId] = useState('');
 
   async function load() {
     const [r, l] = await Promise.all([api<Row[]>('/api/admin/portfolio'), api<string[]>('/api/admin/portfolio/images')]);
@@ -41,7 +43,7 @@ export default function PortfolioAdmin() {
     setForm(f => ({ ...f, images: f.images.includes(src) ? f.images.filter(x => x !== src) : [...f.images, src] }));
   }
   function move(i: number, d: number) {
-    setForm(f => { const a = [...f.images]; const j = i + d; if (j < 0 || j >= a.length) return f; [a[i], a[j]] = [a[j], a[i]]; return { ...f, images: a }; });
+    setForm(f => { const a = [...f.images]; const j = i + d; if (j < 0 || j >= a.length) return f;[a[i], a[j]] = [a[j], a[i]]; return { ...f, images: a }; });
   }
 
   async function save(e: FormEvent) {
@@ -56,17 +58,56 @@ export default function PortfolioAdmin() {
   }
 
   async function quick(row: Row, visible: boolean) {
-    const r = await api('/api/admin/portfolio', 'PATCH', { ...row, images: parse(row.images), visible });
-    if (!r.ok) setNotice({ kind: 'error', text: r.error });
-    load();
+    if (actionId) return;
+
+    setActionId(row.id);
+
+    const r = await api('/api/admin/portfolio', 'PATCH', {
+      ...row,
+      images: parse(row.images),
+      visible,
+    });
+
+    setActionId('');
+
+    if (!r.ok) {
+      setNotice({ kind: 'error', text: r.error });
+      return;
+    }
+
+    await load();
   }
 
   async function remove(row: Row) {
-    if (!confirm(`Supprimer « ${row.title} » du portfolio ? Les images restent sur le serveur. Pour simplement la cacher, utilisez « Masquer ».`)) return;
-    const r = await api(`/api/admin/portfolio?id=${row.id}`, 'DELETE');
-    if (!r.ok) setNotice({ kind: 'error', text: r.error });
-    if (editingId === row.id) reset();
-    load();
+    if (
+      !confirm(
+        `Supprimer « ${row.title} » du portfolio ? Les images restent sur le serveur. Pour simplement la cacher, utilisez « Masquer ».`
+      )
+    ) {
+      return;
+    }
+
+    if (actionId) return;
+
+    setActionId(row.id);
+
+    const r = await api(
+      `/api/admin/portfolio?id=${row.id}`,
+      'DELETE'
+    );
+
+    setActionId('');
+
+    if (!r.ok) {
+      setNotice({ kind: 'error', text: r.error });
+      return;
+    }
+
+    if (editingId === row.id) {
+      reset();
+    }
+
+    await load();
   }
 
   return (
@@ -155,8 +196,27 @@ export default function PortfolioAdmin() {
                     <td data-label="">
                       <div className="actions">
                         <button className="btn btn-quiet btn-sm" type="button" onClick={() => edit(row)}>Modifier</button>
-                        <button className="btn btn-quiet btn-sm" type="button" onClick={() => quick(row, !row.visible)}>{row.visible ? 'Masquer' : 'Afficher'}</button>
-                        <button className="btn btn-danger btn-sm" type="button" onClick={() => remove(row)}>Supprimer</button>
+                        <button
+                          className="btn btn-quiet btn-sm"
+                          type="button"
+                          disabled={actionId === row.id}
+                          onClick={() => quick(row, !row.visible)}
+                        >
+                          {actionId === row.id
+                            ? 'Traitement…'
+                            : row.visible
+                              ? 'Masquer'
+                              : 'Afficher'}
+                        </button>
+
+                        <button
+                          className="btn btn-danger btn-sm"
+                          type="button"
+                          disabled={actionId === row.id}
+                          onClick={() => remove(row)}
+                        >
+                          {actionId === row.id ? 'Traitement…' : 'Supprimer'}
+                        </button>
                       </div>
                     </td>
                   </tr>

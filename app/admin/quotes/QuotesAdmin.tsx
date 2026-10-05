@@ -72,55 +72,72 @@ export default function QuotesAdmin({ rows, clients, requests, taxRate, preset, 
           <button type="button" className="btn btn-quiet btn-sm" onClick={() => setOpen(v => !v)} aria-expanded={open}>{open ? 'Replier' : 'Préparer un devis'}</button>
         </div>
         {open && (
-          <form className="form" onSubmit={e => { e.preventDefault(); save(false); }}>
-            <div className="row2">
-              <div className="field">
-                <label htmlFor="qa-client">Client</label>
-                <select id="qa-client" value={clientId} onChange={e => { setClientId(e.target.value); setRequestId(''); }} required>
-                  <option value="">Choisir un client…</option>
-                  {clients.map(c => <option key={c.id} value={c.id}>{c.firstName} {c.lastName} ({c.email})</option>)}
-                </select>
-                {!clients.length && <span className="hint">Aucun client actif : le client doit d’abord créer son compte.</span>}
+          <form
+            className="form"
+            aria-busy={saving}
+            onSubmit={e => {
+              e.preventDefault();
+              save(false);
+            }}
+          >
+            <fieldset
+              disabled={saving}
+              style={{
+                border: 0,
+                padding: 0,
+                margin: 0,
+                minWidth: 0,
+              }}
+            >
+              <div className="row2">
+                <div className="field">
+                  <label htmlFor="qa-client">Client</label>
+                  <select id="qa-client" value={clientId} onChange={e => { setClientId(e.target.value); setRequestId(''); }} required>
+                    <option value="">Choisir un client…</option>
+                    {clients.map(c => <option key={c.id} value={c.id}>{c.firstName} {c.lastName} ({c.email})</option>)}
+                  </select>
+                  {!clients.length && <span className="hint">Aucun client actif : le client doit d’abord créer son compte.</span>}
+                </div>
+                <div className="field">
+                  <label htmlFor="qa-request">Demande liée <span className="opt">(facultatif)</span></label>
+                  <select id="qa-request" value={requestId} onChange={e => setRequestId(e.target.value)} disabled={!clientId}>
+                    <option value="">Aucune</option>
+                    {clientRequests.map(r => <option key={r.id} value={r.id}>{r.title}</option>)}
+                  </select>
+                </div>
               </div>
-              <div className="field">
-                <label htmlFor="qa-request">Demande liée <span className="opt">(facultatif)</span></label>
-                <select id="qa-request" value={requestId} onChange={e => setRequestId(e.target.value)} disabled={!clientId}>
-                  <option value="">Aucune</option>
-                  {clientRequests.map(r => <option key={r.id} value={r.id}>{r.title}</option>)}
-                </select>
+              <fieldset className="fieldset-rule">
+                <legend>Lignes</legend>
+                <div className="lines">
+                  {lines.map((l, i) => (
+                    <div className="line" key={i}>
+                      <div className="field"><label htmlFor={`qa-d${i}`}>Prestation</label><input id={`qa-d${i}`} value={l.description} onChange={e => setLine(i, { description: e.target.value })} required maxLength={300} /></div>
+                      <div className="field"><label htmlFor={`qa-q${i}`}>Qté</label><input id={`qa-q${i}`} type="number" step="0.01" min="0.01" value={l.quantity} onChange={e => setLine(i, { quantity: e.target.value })} required /></div>
+                      <div className="field"><label htmlFor={`qa-p${i}`}>Prix unitaire HT</label><input id={`qa-p${i}`} type="number" step="0.01" min="0" value={l.unitPrice} onChange={e => setLine(i, { unitPrice: e.target.value })} required /></div>
+                      <button type="button" className="btn btn-quiet btn-sm" style={{ minHeight: 46 }} aria-label={`Retirer la ligne ${i + 1}`} disabled={lines.length === 1} onClick={() => setLines(v => v.filter((_, j) => j !== i))}>×</button>
+                    </div>
+                  ))}
+                </div>
+                <div><button type="button" className="btn btn-quiet btn-sm" onClick={() => setLines(v => [...v, { description: '', quantity: '1', unitPrice: '' }])}>Ajouter une ligne</button></div>
+              </fieldset>
+              <div className="row3 fieldset-rule">
+                <div className="field"><label htmlFor="qa-disc">Remise (TND)</label><input id="qa-disc" type="number" step="0.01" min="0" value={discount} onChange={e => setDiscount(e.target.value)} /></div>
+                <div className="field"><label htmlFor="qa-tax">TVA (%)</label><input id="qa-tax" type="number" step="0.01" min="0" max="100" value={tax} onChange={e => setTax(e.target.value)} /></div>
+                <div className="field"><label htmlFor="qa-valid">Valable jusqu’au</label><input id="qa-valid" type="date" value={validUntil} onChange={e => setValidUntil(e.target.value)} required /></div>
               </div>
-            </div>
-            <fieldset className="fieldset-rule">
-              <legend>Lignes</legend>
-              <div className="lines">
-                {lines.map((l, i) => (
-                  <div className="line" key={i}>
-                    <div className="field"><label htmlFor={`qa-d${i}`}>Prestation</label><input id={`qa-d${i}`} value={l.description} onChange={e => setLine(i, { description: e.target.value })} required maxLength={300} /></div>
-                    <div className="field"><label htmlFor={`qa-q${i}`}>Qté</label><input id={`qa-q${i}`} type="number" step="0.01" min="0.01" value={l.quantity} onChange={e => setLine(i, { quantity: e.target.value })} required /></div>
-                    <div className="field"><label htmlFor={`qa-p${i}`}>Prix unitaire HT</label><input id={`qa-p${i}`} type="number" step="0.01" min="0" value={l.unitPrice} onChange={e => setLine(i, { unitPrice: e.target.value })} required /></div>
-                    <button type="button" className="btn btn-quiet btn-sm" style={{ minHeight: 46 }} aria-label={`Retirer la ligne ${i + 1}`} disabled={lines.length === 1} onClick={() => setLines(v => v.filter((_, j) => j !== i))}>×</button>
-                  </div>
-                ))}
+              <div className="totals">
+                <span>Sous-total : {money(totals.sub)}</span>
+                <span>Total HT : {money(totals.ht)}</span>
+                <strong>Total TTC : {money(totals.ttc)}</strong>
               </div>
-              <div><button type="button" className="btn btn-quiet btn-sm" onClick={() => setLines(v => [...v, { description: '', quantity: '1', unitPrice: '' }])}>Ajouter une ligne</button></div>
+              <div className="field"><label htmlFor="qa-cond">Conditions</label><textarea id="qa-cond" value={conditions} onChange={e => setConditions(e.target.value)} maxLength={3000} style={{ minHeight: 80 }} /></div>
+              <div className="field"><label htmlFor="qa-notes">Notes pour le client <span className="opt">(facultatif)</span></label><textarea id="qa-notes" value={notes} onChange={e => setNotes(e.target.value)} maxLength={3000} style={{ minHeight: 70 }} /></div>
+              <Notice value={notice} />
+              <div className="actions">
+                <button type="button" className="btn btn-primary" disabled={saving || !clientId} onClick={() => save(true)}>{saving ? 'Enregistrement…' : 'Envoyer au client'}</button>
+                <button className="btn btn-quiet" disabled={saving || !clientId}>Enregistrer en brouillon</button>
+              </div>
             </fieldset>
-            <div className="row3 fieldset-rule">
-              <div className="field"><label htmlFor="qa-disc">Remise (TND)</label><input id="qa-disc" type="number" step="0.01" min="0" value={discount} onChange={e => setDiscount(e.target.value)} /></div>
-              <div className="field"><label htmlFor="qa-tax">TVA (%)</label><input id="qa-tax" type="number" step="0.01" min="0" max="100" value={tax} onChange={e => setTax(e.target.value)} /></div>
-              <div className="field"><label htmlFor="qa-valid">Valable jusqu’au</label><input id="qa-valid" type="date" value={validUntil} onChange={e => setValidUntil(e.target.value)} required /></div>
-            </div>
-            <div className="totals">
-              <span>Sous-total : {money(totals.sub)}</span>
-              <span>Total HT : {money(totals.ht)}</span>
-              <strong>Total TTC : {money(totals.ttc)}</strong>
-            </div>
-            <div className="field"><label htmlFor="qa-cond">Conditions</label><textarea id="qa-cond" value={conditions} onChange={e => setConditions(e.target.value)} maxLength={3000} style={{ minHeight: 80 }} /></div>
-            <div className="field"><label htmlFor="qa-notes">Notes pour le client <span className="opt">(facultatif)</span></label><textarea id="qa-notes" value={notes} onChange={e => setNotes(e.target.value)} maxLength={3000} style={{ minHeight: 70 }} /></div>
-            <Notice value={notice} />
-            <div className="actions">
-              <button type="button" className="btn btn-primary" disabled={saving || !clientId} onClick={() => save(true)}>{saving ? 'Enregistrement…' : 'Envoyer au client'}</button>
-              <button className="btn btn-quiet" disabled={saving || !clientId}>Enregistrer en brouillon</button>
-            </div>
           </form>
         )}
         {!open && notice && <Notice value={notice} />}
