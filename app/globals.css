@@ -41,10 +41,12 @@
 html {
   -webkit-text-size-adjust: 100%;
   scroll-padding-top: calc(var(--header) + 16px);
+  overflow-x: clip;
 }
 body {
   margin: 0;
   min-width: 320px;
+  overflow-x: clip;
   background:
     radial-gradient(
       circle at 50% -10%,
@@ -238,6 +240,7 @@ p {
   position: sticky;
   top: 0;
   z-index: 50;
+  isolation: isolate;
   background: rgba(7, 11, 16, 0.78);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(18px);
@@ -306,6 +309,8 @@ p {
 }
 .menu-btn {
   display: none;
+  position: relative;
+  z-index: 61;
   margin-left: auto;
   width: 44px;
   height: 44px;
@@ -347,16 +352,28 @@ p {
     display: grid;
   }
   .mobile-panel {
-    display: block;
+    display: flex;
+    flex-direction: column;
     position: fixed;
-    inset: var(--header) 0 0;
-    z-index: 49;
+    top: var(--header);
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 60;
+    width: 100%;
+    max-width: 100%;
+    min-height: 0;
     background: var(--sheet);
     padding: 12px var(--gutter) 32px;
+    overflow-x: hidden;
     overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
   .mobile-panel a:not(.btn) {
     display: block;
+    width: 100%;
+    min-height: 48px;
     padding: 14px 4px;
     border-bottom: 1px solid var(--rule-soft);
     text-decoration: none;
@@ -371,6 +388,11 @@ p {
   .mobile-panel .btn {
     margin-top: 20px;
     width: 100%;
+  }
+
+  .mobile-panel .theme-toggle {
+    align-self: flex-start;
+    margin-top: 16px;
   }
 }
 
@@ -526,6 +548,10 @@ p {
 }
 
 @media (max-width: 900px) {
+  .site-header .wrap {
+    gap: 16px;
+  }
+
   .hero-grid {
     grid-template-columns: 1fr;
     min-height: 0;
@@ -2348,7 +2374,7 @@ select {
   color: var(--ink);
 }
 
-:root[data-theme="light"] .site-header {
+:root[data-theme="light"].site-header {
   background: rgba(244, 248, 251, 0.82);
   border-bottom-color: rgba(11, 22, 32, 0.10);
 }
@@ -2377,22 +2403,6 @@ select {
     0 0 32px rgba(0, 169, 255, 0.08);
 }
 
-html[data-theme="light"] {
-  --paper: #f4f7fa;
-  --sheet: #ffffff;
-  --ink: #111820;
-  --graphite: #5d6b78;
-  --rule: #d9e1e8;
-  --rule-soft: #e9eef3;
-
-  --blue: #008ed6;
-  --blue-dark: #2564d9;
-  --blue-wash: rgba(0, 142, 214, 0.08);
-  --cyan: #009edb;
-
-  --panel: rgba(255, 255, 255, 0.88);
-  --glow: rgba(0, 169, 255, 0.16);
-}
 /* ---------------------------------------------------------
    Theme toggle
    --------------------------------------------------------- */
