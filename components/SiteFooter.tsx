@@ -58,7 +58,6 @@ export default function SiteFooter({ site }: { site: Site }) {
               <Link href="/legal/cgu">CGU</Link>
               <Link href="/legal/cgv">CGV</Link>
               <Link href="/legal/confidentialite">Confidentialité</Link>
-              <Link href="/legal/cookies">Cookies</Link>
             </span>
           </div>
         </div>

@@ -458,14 +458,82 @@ p {
   border-right: 1px solid var(--rule);
 }
 .hero-copy h1 {
-  max-width: 8ch;
+  position: relative;
+  z-index: 10;
+
+  /*
+   * Largeur suffisante pour éviter que les lettres
+   * soient coupées ou compressées.
+   */
+  max-width: 11ch;
+
   font-size: clamp(2.9rem, 7.4vw, 6rem);
   line-height: 0.95;
-  background: linear-gradient(100deg, #ffffff 15%, #bfeeff 65%, #20c4ff);
+
+  /*
+   * Dégradé utilisé par défaut en mode sombre.
+   */
+  background: linear-gradient(
+    100deg,
+    #ffffff 10%,
+    #bfeeff 58%,
+    #20c4ff 100%
+  );
+
   -webkit-background-clip: text;
   background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+
+  /*
+   * Empêche les effets de superposition de couper le texte.
+   */
+  overflow: visible;
+  isolation: isolate;
+}
+
+/*
+ * MODE CLAIR
+ *
+ * Le titre devient sombre et beaucoup plus lisible
+ * sur le fond blanc.
+ */
+html[data-theme="light"] .hero-copy h1 {
+  background: linear-gradient(
+    100deg,
+    #0b1620 0%,
+    #16354a 55%,
+    #007fbd 100%
+  );
+
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
   color: transparent;
 }
+
+/*
+ * Sécurité supplémentaire :
+ * le contenu du hero reste au-dessus des éléments
+ * décoratifs et du viewer 3D.
+ */
+.hero-copy {
+  position: relative;
+  z-index: 5;
+}
+
+.hero-copy::before {
+  z-index: 0;
+  pointer-events: none;
+}
+
+.hero-copy h1,
+.hero-copy .lead,
+.hero-copy .actions {
+  position: relative;
+  z-index: 5;
+}
+
 .hero-copy .lead {
   font-size: 1.15rem;
 }
@@ -562,6 +630,20 @@ p {
   }
   .hero-figure {
     min-height: 320px;
+  }
+}
+@media (max-width: 900px) {
+  .hero-copy h1 {
+    max-width: 12ch;
+    font-size: clamp(2.7rem, 10vw, 4.5rem);
+  }
+}
+
+@media (max-width: 600px) {
+  .hero-copy h1 {
+    max-width: 100%;
+    font-size: clamp(2.5rem, 12vw, 3.8rem);
+    line-height: 0.98;
   }
 }
 
@@ -1134,56 +1216,166 @@ p {
 }
 
 /* ---------- Formulaires ---------- */
+
 .form {
   display: grid;
   gap: 18px;
 }
+
 .field {
   display: grid;
   gap: 6px;
   min-width: 0;
 }
+
 .field > label,
 .field > .label {
   font-weight: 600;
   font-size: 0.92rem;
+  color: var(--ink);
 }
+
 .field .opt {
   font-weight: 400;
   color: var(--graphite);
 }
+
+/*
+ * Champs de formulaire
+ * IMPORTANT :
+ * Le fond et le texte utilisent les variables du thème.
+ * Cela évite le problème texte blanc sur fond blanc en mode sombre.
+ */
 .field input,
 .field select,
-.field textarea {
+.field textarea,
+input,
+select,
+textarea {
   width: 100%;
   min-height: 46px;
   padding: 10px 12px;
   border: 1px solid var(--rule);
   border-radius: 4px;
-  background: #fff;
+  background: var(--sheet);
+  color: var(--ink);
+  caret-color: var(--blue);
+  color-scheme: inherit;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+/* Placeholder lisible en mode sombre et en mode clair */
+.field input::placeholder,
+.field textarea::placeholder,
+input::placeholder,
+textarea::placeholder {
+  color: var(--graphite);
+  opacity: 0.85;
+}
+
+/* Focus */
+.field input:focus,
+.field select:focus,
+.field textarea:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 0;
+  border-color: var(--blue);
+  box-shadow:
+    0 0 0 3px var(--blue-wash),
+    0 8px 25px rgba(0, 169, 255, 0.05);
+}
+
+/* Texte sélectionné */
+.field input::selection,
+.field textarea::selection,
+input::selection,
+textarea::selection {
+  background: rgba(0, 169, 255, 0.28);
   color: var(--ink);
 }
-.field textarea {
+
+/* Champs désactivés */
+.field input:disabled,
+.field select:disabled,
+.field textarea:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  background: var(--paper);
+  color: var(--graphite);
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+/* Upload de fichiers */
+.field input[type="file"],
+input[type="file"] {
+  padding: 10px;
+  background: var(--paper);
+  color: var(--ink);
+  border-style: dashed;
+}
+
+/* Le bouton natif de sélection de fichier */
+.field input[type="file"]::file-selector-button,
+input[type="file"]::file-selector-button {
+  margin-right: 10px;
+  padding: 7px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--sheet);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.field input[type="file"]::file-selector-button:hover,
+input[type="file"]::file-selector-button:hover {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+/* Textareas */
+.field textarea,
+textarea {
   min-height: 130px;
   resize: vertical;
   line-height: 1.5;
 }
-.field input:focus,
-.field select:focus,
-.field textarea:focus {
-  outline: 0;
-  border-color: var(--blue);
-  box-shadow: 0 0 0 3px var(--blue-wash);
+
+/* Selects */
+.field select,
+select {
+  cursor: pointer;
 }
-.field input:disabled {
-  background: var(--paper);
-  color: var(--graphite);
+
+.field select option,
+select option {
+  background: var(--sheet);
+  color: var(--ink);
 }
-.field input[type="file"] {
-  padding: 10px;
-  background: var(--paper);
-  border-style: dashed;
+
+/* Autofill Chrome / Edge */
+.field input:-webkit-autofill,
+.field input:-webkit-autofill:hover,
+.field input:-webkit-autofill:focus,
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--ink);
+  -webkit-box-shadow: 0 0 0 1000px var(--sheet) inset;
+  box-shadow: 0 0 0 1000px var(--sheet) inset;
+  caret-color: var(--blue);
 }
+
+/* Message d'aide sous les champs */
 .hint {
   font-size: 0.85rem;
   color: var(--graphite);
@@ -2003,7 +2195,20 @@ a.kpi:hover strong {
   border: 1px solid var(--rule);
   border-radius: 4px;
   resize: vertical;
-  background: #fff;
+  background: var(--sheet);
+  color: var(--ink);
+  caret-color: var(--blue);
+}
+
+.chat-form textarea::placeholder {
+  color: var(--graphite);
+  opacity: 0.85;
+}
+
+.chat-form textarea:focus {
+  outline: 0;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px var(--blue-wash);
 }
 .chat-form textarea:focus {
   outline: 0;
