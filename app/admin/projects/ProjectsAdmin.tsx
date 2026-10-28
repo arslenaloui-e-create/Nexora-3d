@@ -48,14 +48,46 @@ function ProjectCard({ p }: { p: Row }) {
       </summary>
       <div className="project-body">
         {editing ? (
-          <form className="form" onSubmit={e => { e.preventDefault(); update(formJson(e.currentTarget)); }}>
+          <form
+            className="form"
+            aria-busy={busy}
+            onSubmit={e => {
+              e.preventDefault();
+              update(formJson(e.currentTarget));
+            }}
+          >
             <div className="field"><label htmlFor={`t-${p.id}`}>Titre</label><input id={`t-${p.id}`} name="title" defaultValue={p.title} required minLength={2} maxLength={160} /></div>
             <div className="field"><label htmlFor={`d-${p.id}`}>Description</label><textarea id={`d-${p.id}`} name="description" defaultValue={p.description} required /></div>
-            <div className="actions"><button className="btn btn-primary btn-sm" disabled={busy}>Enregistrer</button><button type="button" className="btn btn-quiet btn-sm" onClick={() => setEditing(false)}>Annuler</button></div>
+            <div className="actions">
+              <button className="btn btn-primary btn-sm" disabled={busy}>
+                {busy ? 'Enregistrement…' : 'Enregistrer'}
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-quiet btn-sm"
+                disabled={busy}
+                onClick={() => setEditing(false)}
+              >
+                Annuler
+              </button>
+            </div>
           </form>
         ) : <p style={{ whiteSpace: 'pre-line' }}>{p.description}</p>}
 
-        <form className="form" onSubmit={async e => { e.preventDefault(); const form = e.currentTarget; if (await update(formJson(form))) form.reset(); }}>
+        <form
+          className="form"
+          aria-busy={busy}
+          onSubmit={async e => {
+            e.preventDefault();
+
+            const form = e.currentTarget;
+
+            if (await update(formJson(form))) {
+              form.reset();
+            }
+          }}
+        >
           <div className="row2">
             <div className="field">
               <label htmlFor={`s-${p.id}`}>Statut</label>
@@ -64,8 +96,12 @@ function ProjectCard({ p }: { p: Row }) {
               </select>
             </div>
             <div className="field"><label htmlFor={`n-${p.id}`}>Note pour le client <span className="opt">(facultatif)</span></label><input id={`n-${p.id}`} name="note" maxLength={500} placeholder="Ex. Modèle validé, impression lancée" /></div>
+            <div>
+              <button className="btn btn-primary btn-sm" disabled={busy}>
+                {busy ? 'Mise à jour…' : 'Mettre à jour l’avancement'}
+              </button>
+            </div>
           </div>
-          <div><button className="btn btn-primary btn-sm" disabled={busy}>Mettre à jour l’avancement</button></div>
         </form>
         <Notice value={notice} />
 

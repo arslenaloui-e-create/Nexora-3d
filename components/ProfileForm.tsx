@@ -28,8 +28,13 @@ export default function ProfileForm({ user }: { user: User }) {
   }
 
   return (
-    <form className="panel form" onSubmit={submit} style={{ maxWidth: 720 }}>
-      <fieldset>
+    <form
+      className="panel form"
+      onSubmit={submit}
+      aria-busy={loading}
+      style={{ maxWidth: 720 }}
+    >
+      <fieldset disabled={loading}>
         <legend>Coordonnées</legend>
         <div className="row2">
           <div className="field"><label htmlFor="p-first">Prénom</label><input id="p-first" name="firstName" defaultValue={user.firstName} required minLength={2} maxLength={60} autoComplete="given-name" /></div>
@@ -41,7 +46,7 @@ export default function ProfileForm({ user }: { user: User }) {
           <div className="field"><label htmlFor="p-company">Entreprise <span className="opt">(facultatif)</span></label><input id="p-company" name="company" defaultValue={user.company || ''} maxLength={160} autoComplete="organization" /></div>
         </div>
       </fieldset>
-      <fieldset className="fieldset-rule">
+      <fieldset className="fieldset-rule" disabled={loading}>
         <legend>Mot de passe <span className="opt muted small">(laisser vide pour ne pas le changer)</span></legend>
         <div className="field"><label htmlFor="p-current">Mot de passe actuel</label><input id="p-current" name="currentPassword" type="password" autoComplete="current-password" /></div>
         <div className="row2">

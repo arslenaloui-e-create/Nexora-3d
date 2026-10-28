@@ -17,14 +17,18 @@ export async function POST(req: Request) {
     const d = registerSchema.parse(await req.json());
     const email = d.email.toLowerCase().trim();
 
-    if (await db.user.findUnique({ where: { email } })) {
+    const existingUser = await db.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUser) {
       return jsonError(
         "Un compte existe déjà avec cet email. Connectez-vous ou réinitialisez votre mot de passe.",
         409,
       );
     }
 
-    await db.user.create({
+    const user = await db.user.create({
       data: {
         firstName: d.firstName,
         lastName: d.lastName,
@@ -38,8 +42,12 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       message: "Votre compte Nexora 3D a été créé avec succès.",
+      userId: user.id,
     });
   } catch (e) {
-    return apiError(e, "Impossible de créer le compte pour le moment.");
+    return apiError(
+      e,
+      "Impossible de créer le compte pour le moment.",
+    );
   }
 }

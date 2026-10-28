@@ -2,7 +2,7 @@
 
 Site et plateforme de Nexora 3D : site public (services, réalisations, FAQ, contact), demandes de devis avec fichiers, devis PDF acceptés en ligne, suivi de projet, messagerie, notifications, espace client et administration.
 
-Stack : Next.js 15 (App Router) · React 19 · TypeScript · Prisma 6 · PostgreSQL · hébergement Railway.
+Stack : Next.js 15 (App Router) · React 19 · TypeScript · Prisma 6 · PostgreSQL · déploiement Vercel (ou hébergement Node compatible). Supabase peut fournir PostgreSQL et le stockage privé des fichiers; Resend peut fournir les emails transactionnels.
 
 ## Parcours
 
@@ -36,15 +36,15 @@ Autre admin : `npm run admin:create -- email@exemple.com Prenom Nom MotDePasseLo
 | `DATABASE_URL` | Connexion PostgreSQL. |
 | `AUTH_SECRET` | **Obligatoire**, 32 caractères minimum. En production, une valeur absente ou d’exemple bloque toutes les connexions (volontaire : sinon n’importe qui pourrait fabriquer une session admin). |
 | `APP_URL` | Adresse publique (liens des emails, sitemap). |
-| `SMTP_*`, `ADMIN_NOTIFY_EMAIL` | Emails (facultatif). Sans SMTP, tout fonctionne sauf l’envoi d’emails. |
-| `STORAGE_DIR` | Dossier des fichiers clients. Sur Railway : le chemin du volume. |
+| `RESEND_API_KEY`, `EMAIL_FROM`, `ADMIN_NOTIFICATION_EMAIL` | Emails transactionnels via Resend (facultatif). Gmail API reste disponible comme compatibilité. |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET` | Stockage privé des fichiers en production Vercel. La clé service role est serveur uniquement. |
 | `MAX_UPLOAD_MB` | Taille max par fichier (50 par défaut). |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Utilisés seulement par `npm run db:seed`. |
 
-## Déploiement Railway
+## Déploiement Vercel + Supabase + Resend
 
-- Build : `npm run build` (génère Prisma puis Next). Start : `npm start` (Next écoute sur `PORT` fourni par Railway).
-- **Fichiers clients** : le disque d’un service Railway est effacé à chaque déploiement. Créez un **Volume** sur le service web, monté sur `/app/storage`, et définissez `STORAGE_DIR=/app/storage`. Sans volume, les fichiers envoyés disparaissent au prochain déploiement.
+- Build Vercel : `npm run build` (génère Prisma puis Next). Vercel détecte Next.js automatiquement.
+- **Fichiers clients** : sur Vercel, configurez `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` et le bucket privé `SUPABASE_STORAGE_BUCKET=client-files`. Sans ces variables, le stockage local est utilisé et n’est pas persistant sur Vercel.
 - **Migrations** : aucune modification du schéma dans cette version, rien à migrer. Pour une future migration : `npm run db:deploy`. Si la base a été créée avec `prisma db push` (pas de table `_prisma_migrations`), marquer d’abord les migrations existantes comme appliquées :
   ```bash
   npx prisma migrate resolve --applied 20260925235227_init
@@ -60,3 +60,14 @@ Autre admin : `npm run admin:create -- email@exemple.com Prenom Nom MotDePasseLo
 ## Sécurité en place
 
 Mots de passe bcrypt · session JWT en cookie `httpOnly` / `SameSite=Lax` / `Secure` en production · rôle et statut relus en base à chaque requête (un compte désactivé perd l’accès immédiatement) · accès aux fichiers, devis et messages limité au client concerné · limites anti-abus (connexion, inscription, mot de passe oublié, contact, demandes) · types de fichiers contrôlés · en-têtes de sécurité (`X-Frame-Options`, `nosniff`, `Referrer-Policy`).
+
+
+## Configuration Vercel, Supabase et Resend
+
+Consultez **[GUIDE_CONFIGURATION_DEPLOIEMENT.md](./GUIDE_CONFIGURATION_DEPLOIEMENT.md)** pour les étapes détaillées, les variables, la création du bucket privé, les migrations, le déploiement et la checklist de validation.
+
+Le projet utilise Prisma avec PostgreSQL et son authentification applicative personnalisée. Supabase est utilisé ici comme fournisseur PostgreSQL/Storage, pas comme remplacement automatique du système d'authentification. Les migrations SQL existantes sont conservées.
+
+Pour envoyer des emails, configurez `RESEND_API_KEY`, `EMAIL_FROM` et `ADMIN_NOTIFICATION_EMAIL`. Le code utilise Resend côté serveur si la clé est présente; sinon il conserve une compatibilité facultative avec l'ancienne intégration Gmail API.
+
+**Important :** ne déployez pas avec la valeur d'exemple `AUTH_SECRET`, et ne rendez pas public le bucket contenant les fichiers clients.

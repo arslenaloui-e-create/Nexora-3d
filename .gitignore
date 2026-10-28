@@ -5,3 +5,10 @@ node_modules
 storage/*
 !storage/.gitkeep
 prisma/dev.db
+
+.env.*
+!.env.example
+*.tsbuildinfo
+coverage
+playwright-report
+test-results

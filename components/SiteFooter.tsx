@@ -52,7 +52,14 @@ export default function SiteFooter({ site }: { site: Site }) {
           </div>
           <div className="footer-bottom">
             <span>© {new Date().getFullYear()} Nexora 3D, Tunis</span>
-            <span>Conception mécanique, CAO, prototypage et impression 3D</span>
+
+            <span className="footer-legal">
+              <Link href="/legal/mentions-legales">Mentions légales</Link>
+              <Link href="/legal/cgu">CGU</Link>
+              <Link href="/legal/cgv">CGV</Link>
+              <Link href="/legal/confidentialite">Confidentialité</Link>
+              <Link href="/legal/cookies">Cookies</Link>
+            </span>
           </div>
         </div>
       </footer>

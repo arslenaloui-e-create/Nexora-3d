@@ -49,16 +49,21 @@ export default function Chat({ meId, clientId, asAdmin = false, onRead }: { meId
   const mine = (m: Message) => (asAdmin ? m.sender.role === 'ADMIN' : m.senderId === meId);
 
   return (
-    <div className="chat">
+    <div className="chat" aria-busy={rows === null || sending}>
       <div className="chat-log" ref={log} aria-live="polite">
-        {rows === null ? <p className="muted">Chargement…</p>
+        {rows === null ? (
+          <div className="chat-loading" role="status">
+            <span className="btn-spinner" aria-hidden="true" />
+            <span>Chargement de la conversation…</span>
+          </div>
+        )
           : rows.length === 0 ? <p className="muted">{asAdmin ? 'Aucun message avec ce client. Écrivez le premier.' : 'Posez votre question ici : l’équipe Nexora 3D vous répond dans cette conversation.'}</p>
-          : rows.map(m => (
-            <div key={m.id} className={`msg ${mine(m) ? 'me' : ''}`}>
-              {m.content}
-              <small>{mine(m) ? (asAdmin ? `${m.sender.firstName}, ` : 'Vous, ') : `${m.sender.firstName} ${m.sender.lastName}, `}{dateTime(m.createdAt)}</small>
-            </div>
-          ))}
+            : rows.map(m => (
+              <div key={m.id} className={`msg ${mine(m) ? 'me' : ''}`}>
+                {m.content}
+                <small>{mine(m) ? (asAdmin ? `${m.sender.firstName}, ` : 'Vous, ') : `${m.sender.firstName} ${m.sender.lastName}, `}{dateTime(m.createdAt)}</small>
+              </div>
+            ))}
       </div>
       <form className="chat-form" onSubmit={send}>
         <label className="skip" htmlFor="chat-input">Votre message</label>

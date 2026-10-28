@@ -30,11 +30,37 @@ export default async function Quotes() {
               <Pill map={QUOTE_STATUS} value={expired ? 'EXPIRED' : q.status} />
             </div>
             <div className="table-wrap">
-              <table className="table">
-                <thead><tr><th>Prestation</th><th className="num">Qté</th><th className="num">Prix unitaire</th><th className="num">Total</th></tr></thead>
+              <table className="table stack quote-lines">
+                <thead>
+                  <tr>
+                    <th>Prestation</th>
+                    <th className="num">Qté</th>
+                    <th className="num">Prix unitaire</th>
+                    <th className="num">Total</th>
+                  </tr>
+                </thead>
+
                 <tbody>
                   {q.lines.map(l => (
-                    <tr key={l.id}><td>{l.description}</td><td className="num">{Number(l.quantity)}</td><td className="num">{money(l.unitPrice)}</td><td className="num">{money(Number(l.quantity) * Number(l.unitPrice))}</td></tr>
+                    <tr key={l.id}>
+                      <td data-label="Prestation">
+                        <strong>{l.description}</strong>
+                      </td>
+
+                      <td data-label="Qté" className="num">
+                        {Number(l.quantity)}
+                      </td>
+
+                      <td data-label="Prix unitaire" className="num">
+                        {money(l.unitPrice)}
+                      </td>
+
+                      <td data-label="Total" className="num">
+                        <strong>
+                          {money(Number(l.quantity) * Number(l.unitPrice))}
+                        </strong>
+                      </td>
+                    </tr>
                   ))}
                 </tbody>
               </table>

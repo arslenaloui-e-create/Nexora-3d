@@ -42,7 +42,12 @@ export default function MessagesAdmin({ meId, initialTab, initialClient, contact
       </div>
 
       {tab === 'chat' ? (
-        clients === null ? <p className="muted">Chargement…</p> : clients.length === 0 ? <div className="empty"><strong>Aucun client inscrit.</strong></div> : (
+        clients === null ? (
+          <div className="chat-loading" role="status">
+            <span className="btn-spinner" aria-hidden="true" />
+            <span>Chargement des conversations…</span>
+          </div>
+        ) : clients.length === 0 ? <div className="empty"><strong>Aucun client inscrit.</strong></div> : (
           <div className="inbox">
             <div className="inbox-list" role="list">
               {clients.map(c => (

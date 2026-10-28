@@ -23,10 +23,23 @@ export default function RequestsBoard({ rows }: { rows: Row[] }) {
   const shown = filter === 'open' ? open : rows;
 
   async function setStatus(id: string, status: string) {
+    if (busy) return;
+
     setBusy(id);
-    const r = await api('/api/admin/requests', 'PATCH', { id, status });
+    setError('');
+
+    const r = await api('/api/admin/requests', 'PATCH', {
+      id,
+      status,
+    });
+
     setBusy('');
-    setError(r.ok ? '' : r.error);
+
+    if (!r.ok) {
+      setError(r.error);
+      return;
+    }
+
     router.refresh();
   }
 
@@ -68,8 +81,25 @@ export default function RequestsBoard({ rows }: { rows: Row[] }) {
               <Link className="btn btn-quiet btn-sm" href={`/admin/messages?client=${r.client.id}`}>Écrire au client</Link>
               <label className="small" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 Statut
-                <select value={r.status} disabled={busy === r.id} onChange={e => setStatus(r.id, e.target.value)} style={{ minHeight: 36, borderRadius: 4, border: '1px solid var(--rule)', background: '#fff', padding: '0 8px' }}>
-                  {Object.entries(REQUEST_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                <select
+                  value={r.status}
+                  disabled={busy === r.id}
+                  aria-busy={busy === r.id}
+                  onChange={e => setStatus(r.id, e.target.value)}
+                  style={{
+                    minHeight: 36,
+                    minWidth: 150,
+                    borderRadius: 4,
+                    border: '1px solid var(--rule)',
+                    background: '#fff',
+                    padding: '0 8px',
+                  }}
+                >
+                  {Object.entries(REQUEST_STATUS).map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v}
+                    </option>
+                  ))}
                 </select>
               </label>
             </div>

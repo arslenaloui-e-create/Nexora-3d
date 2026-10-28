@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth';
 import { getSite } from '@/lib/site';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
+import AnimatedBackground from '@/components/AnimatedBackground';
 
 const rawBase = process.env.APP_URL || 'http://localhost:3000';
 const base = /^https?:\/\//i.test(rawBase) ? rawBase : `https://${rawBase}`;
@@ -16,7 +17,11 @@ export const metadata: Metadata = {
   icons: { icon: '/logo.jpg' },
 };
 
-export const viewport: Viewport = { width: 'device-width', initialScale: 1, themeColor: '#f8f9f7' };
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#070b10'
+};
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const [session, site] = await Promise.all([getSession(), getSite()]);
@@ -29,6 +34,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body>
+        <AnimatedBackground />
         <a className="skip" href="#contenu">Aller au contenu</a>
         <SiteNav role={session?.role ?? null} logoPath={site.logoPath} />
         <div id="contenu">{children}</div>

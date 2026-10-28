@@ -25,8 +25,25 @@ export default function FaqAdmin({ rows }: { rows: Faq[] }) {
   }
 
   async function quick(f: Faq, patch: Partial<Faq>) {
-    const r = await api('/api/admin/faq', 'PATCH', { ...f, ...patch });
-    if (!r.ok) setNotice({ kind: 'error', text: r.error });
+    if (busy) return;
+
+    setBusy(true);
+
+    const r = await api('/api/admin/faq', 'PATCH', {
+      ...f,
+      ...patch,
+    });
+
+    setBusy(false);
+
+    if (!r.ok) {
+      setNotice({
+        kind: 'error',
+        text: r.error,
+      });
+      return;
+    }
+
     router.refresh();
   }
 
@@ -40,17 +57,31 @@ export default function FaqAdmin({ rows }: { rows: Faq[] }) {
 
   return (
     <>
-      <form className="panel form" onSubmit={save}>
-        <div className="panel-head"><h2>{editing ? 'Modifier la question' : 'Ajouter une question'}</h2>{editing && <button type="button" className="btn btn-quiet btn-sm" onClick={() => { setEditing(null); setForm(blank); }}>Annuler</button>}</div>
-        <div className="field"><label htmlFor="fq-q">Question</label><input id="fq-q" value={form.question} onChange={e => setForm({ ...form, question: e.target.value })} required minLength={3} maxLength={300} /></div>
-        <div className="field"><label htmlFor="fq-a">Réponse</label><textarea id="fq-a" value={form.answer} onChange={e => setForm({ ...form, answer: e.target.value })} required minLength={3} maxLength={5000} /></div>
-        <div className="row3">
-          <div className="field"><label htmlFor="fq-c">Catégorie</label><input id="fq-c" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} maxLength={80} /></div>
-          <div className="field"><label htmlFor="fq-o">Ordre d’affichage</label><input id="fq-o" type="number" value={form.sortOrder} onChange={e => setForm({ ...form, sortOrder: Number(e.target.value) || 0 })} /></div>
-          <label className="check" style={{ alignSelf: 'end', minHeight: 46 }}><input type="checkbox" checked={form.visible} onChange={e => setForm({ ...form, visible: e.target.checked })} /> Visible sur le site</label>
-        </div>
-        <Notice value={notice} />
-        <div><button className="btn btn-primary" disabled={busy}>{busy ? 'Enregistrement…' : editing ? 'Enregistrer' : 'Ajouter'}</button></div>
+      <form
+        className="panel form"
+        onSubmit={save}
+        aria-busy={busy}
+      >
+        <fieldset
+          disabled={busy}
+          style={{
+            border: 0,
+            padding: 0,
+            margin: 0,
+            minWidth: 0,
+          }}
+        >
+          <div className="panel-head"><h2>{editing ? 'Modifier la question' : 'Ajouter une question'}</h2>{editing && <button type="button" className="btn btn-quiet btn-sm" onClick={() => { setEditing(null); setForm(blank); }}>Annuler</button>}</div>
+          <div className="field"><label htmlFor="fq-q">Question</label><input id="fq-q" value={form.question} onChange={e => setForm({ ...form, question: e.target.value })} required minLength={3} maxLength={300} /></div>
+          <div className="field"><label htmlFor="fq-a">Réponse</label><textarea id="fq-a" value={form.answer} onChange={e => setForm({ ...form, answer: e.target.value })} required minLength={3} maxLength={5000} /></div>
+          <div className="row3">
+            <div className="field"><label htmlFor="fq-c">Catégorie</label><input id="fq-c" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} maxLength={80} /></div>
+            <div className="field"><label htmlFor="fq-o">Ordre d’affichage</label><input id="fq-o" type="number" value={form.sortOrder} onChange={e => setForm({ ...form, sortOrder: Number(e.target.value) || 0 })} /></div>
+            <label className="check" style={{ alignSelf: 'end', minHeight: 46 }}><input type="checkbox" checked={form.visible} onChange={e => setForm({ ...form, visible: e.target.checked })} /> Visible sur le site</label>
+          </div>
+          <Notice value={notice} />
+          <div><button className="btn btn-primary" disabled={busy}>{busy ? 'Enregistrement…' : editing ? 'Enregistrer' : 'Ajouter'}</button></div>
+        </fieldset>
       </form>
       {rows.length === 0 ? <div className="empty"><strong>Aucune question.</strong></div> : (
         <div className="table-wrap">
@@ -62,7 +93,19 @@ export default function FaqAdmin({ rows }: { rows: Faq[] }) {
                   <td data-label="Question"><strong>{f.question}</strong><span className="sub">{f.answer.slice(0, 120)}{f.answer.length > 120 ? '…' : ''}</span></td>
                   <td data-label="Catégorie">{f.category}</td>
                   <td data-label="Ordre" className="num">{f.sortOrder}</td>
-                  <td data-label="Visible"><button type="button" className={`pill ${f.visible ? 'pill-ok' : ''}`} style={{ border: 0, cursor: 'pointer' }} onClick={() => quick(f, { visible: !f.visible })} title="Cliquer pour changer">{f.visible ? 'Visible' : 'Masquée'}</button></td>
+                  <td data-label="Visible"><button
+                    type="button"
+                    className={`pill ${f.visible ? 'pill-ok' : ''}`}
+                    style={{
+                      border: 0,
+                      cursor: busy ? 'wait' : 'pointer',
+                    }}
+                    disabled={busy}
+                    onClick={() => quick(f, { visible: !f.visible })}
+                    title="Cliquer pour changer"
+                  >
+                    {f.visible ? 'Visible' : 'Masquée'}
+                  </button></td>
                   <td data-label="">
                     <div className="actions">
                       <button type="button" className="btn btn-quiet btn-sm" onClick={() => { setEditing(f.id); setForm({ question: f.question, answer: f.answer, category: f.category, sortOrder: f.sortOrder, visible: f.visible }); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Modifier</button>
