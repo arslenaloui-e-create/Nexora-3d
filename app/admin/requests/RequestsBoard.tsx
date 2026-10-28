@@ -91,8 +91,7 @@ export default function RequestsBoard({ rows }: { rows: Row[] }) {
                     minWidth: 150,
                     borderRadius: 4,
                     border: '1px solid var(--rule)',
-                    background: 'var(--sheet)',
-                    color: 'var(--ink)',
+                    background: '#fff',
                     padding: '0 8px',
                   }}
                 >

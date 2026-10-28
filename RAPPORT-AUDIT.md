@@ -89,3 +89,17 @@ Tous les tests ont été faits sur une base PostgreSQL locale jetable. **La base
 - **Nouvelles images** : pour en ajouter au portfolio, il faut placer le fichier dans `public/images` puis redéployer. Il n'y a pas d'envoi d'images depuis l'admin, parce que le disque Railway est effacé à chaque déploiement.
 
 Le détail technique (variables d'environnement, déploiement Railway) est dans le `README.md`.
+
+
+## Préparation complémentaire Vercel / Supabase / Resend (28-10-2026)
+
+Le projet a été adapté sans remplacer Next.js/Prisma ni supprimer les parcours existants :
+- `lib/mail.ts` tente désormais Resend côté serveur lorsque `RESEND_API_KEY` est configurée; Gmail API reste disponible en solution de compatibilité.
+- `lib/files.ts` utilise le bucket Supabase Storage privé si `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY` sont définis, et conserve le stockage local pour le développement.
+- `.env.example`, `.gitignore`, `README.md` et `GUIDE_CONFIGURATION_DEPLOIEMENT.md` ont été actualisés.
+- La base reste gérée par Prisma/PostgreSQL; les migrations existantes sont conservées et doivent être appliquées à la base Supabase cible après vérification.
+
+### Validation de cette modification
+- L'archive source a été inspectée et les fichiers concernés modifiés.
+- `npm ci` a été tenté dans l'environnement de travail mais a dépassé le délai disponible; les dépendances n'ont pas été installées. Par conséquent, aucun nouveau build TypeScript/Next.js n'a pu être validé dans cet environnement.
+- Les appels réels à Supabase, Resend et Vercel restent à tester avec vos propres identifiants. Aucun déploiement externe n'a été effectué.

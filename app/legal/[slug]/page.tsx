@@ -19,17 +19,18 @@ const pages: Record<string, LegalPage> = {
       {
         title: "Éditeur du site",
         content: [
-          "Arslen Aloui",
-          "Nexora 3D",
-          "contactnexora3d@gmail.com",
-          "Téléphone : +216 90 508 409",
+          "[RAISON SOCIALE À CONFIRMER]",
+          "[FORME JURIDIQUE À CONFIRMER]",
+          "[ADRESSE À CONFIRMER]",
+          "[IDENTIFIANT FISCAL À CONFIRMER]",
+          "[REGISTRE / IDENTIFIANT LÉGAL À CONFIRMER]",
         ],
       },
       {
         title: "Contact",
         content: [
-          "Email : contactnexora3d@gmail.com",
-          "Téléphone : +216 90 508 409",
+          "Email : [EMAIL OFFICIEL À CONFIRMER]",
+          "Téléphone : [TÉLÉPHONE OFFICIEL À CONFIRMER]",
         ],
       },
       {
@@ -57,8 +58,9 @@ const pages: Record<string, LegalPage> = {
       {
         title: "Responsable du traitement",
         content: [
-          "Arslen Aloui — Fondateur & Lead Ingénieur 3D de Nexora 3D. ",
-          "Email : contactnexora3d@gmail.com",
+          "[RAISON SOCIALE À CONFIRMER]",
+          "[ADRESSE À CONFIRMER]",
+          "[EMAIL OFFICIEL À CONFIRMER]",
         ],
       },
       {
@@ -78,10 +80,16 @@ const pages: Record<string, LegalPage> = {
         ],
       },
       {
+        title: "Durée de conservation",
+        content: [
+          "[DURÉES DE CONSERVATION À CONFIRMER SELON CHAQUE CATÉGORIE DE DONNÉES]",
+        ],
+      },
+      {
         title: "Droits des utilisateurs",
         content: [
           "Les utilisateurs peuvent exercer les droits applicables à leurs données personnelles selon la réglementation applicable.",
-          "Pour toute demande : contactnexora3d@gmail.com",
+          "Pour toute demande : [EMAIL OFFICIEL À CONFIRMER]",
         ],
       },
     ],
@@ -148,7 +156,9 @@ const pages: Record<string, LegalPage> = {
       {
         title: "Prix et paiement",
         content: [
-          "Les prix sont indiqués en Tunisie Dinar (TND) et s'entent de la prestation correspondante.",
+          "[MODALITÉS DE PAIEMENT À CONFIRMER]",
+          "[ACOMPTE À CONFIRMER]",
+          "[DÉLAIS DE PAIEMENT À CONFIRMER]",
         ],
       },
       {
@@ -157,9 +167,47 @@ const pages: Record<string, LegalPage> = {
           "Les délais applicables à une prestation doivent être indiqués dans le devis ou les documents contractuels correspondants.",
         ],
       },
+      {
+        title: "Livraison et réception",
+        content: [
+          "[MODALITÉS DE LIVRAISON À CONFIRMER]",
+          "[CONDITIONS DE RÉCEPTION À CONFIRMER]",
+        ],
+      },
     ],
   },
 
+  cookies: {
+    title: "Politique relative aux cookies",
+    intro:
+      "Cette page présente la structure de l’information relative aux cookies et technologies similaires utilisés par Nexora 3D.",
+    sections: [
+      {
+        title: "Cookies nécessaires",
+        content: [
+          "Certains cookies ou mécanismes similaires peuvent être nécessaires au fonctionnement de l’authentification, de la session utilisateur et de la sécurité de la plateforme.",
+        ],
+      },
+      {
+        title: "Cookies de mesure d’audience",
+        content: [
+          "[À CONFIRMER : aucun outil / outil de mesure utilisé]",
+        ],
+      },
+      {
+        title: "Cookies tiers",
+        content: [
+          "[SERVICES TIERS À CONFIRMER]",
+        ],
+      },
+      {
+        title: "Gestion des préférences",
+        content: [
+          "[MÉCANISME DE GESTION DU CONSENTEMENT À CONFIRMER SELON LES SERVICES EFFECTIVEMENT UTILISÉS]",
+        ],
+      },
+    ],
+  },
 };
 
 export function generateStaticParams() {
@@ -255,6 +303,15 @@ export default async function LegalPage({
               href="/legal/cgv"
             >
               CGV
+            </Link>
+
+            <Link
+              className={
+                slug === "cookies" ? "active" : ""
+              }
+              href="/legal/cookies"
+            >
+              Cookies
             </Link>
           </aside>
 

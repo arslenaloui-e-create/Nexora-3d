@@ -11,7 +11,7 @@ export function escapeHtml(value: unknown) {
 }
 
 export function adminInbox() {
-  return process.env.ADMIN_NOTIFY_EMAIL || process.env.GMAIL_USER || '';
+  return process.env.ADMIN_NOTIFICATION_EMAIL || process.env.ADMIN_NOTIFY_EMAIL || process.env.GMAIL_USER || '';
 }
 
 function requiredEnv(name: string) {
@@ -94,49 +94,62 @@ export async function sendMail(
   html: string,
 ) {
   if (!to) {
-    console.error('GMAIL: destinataire absent');
+    console.error('EMAIL: destinataire absent');
     return false;
   }
 
-  try {
-    const from = requiredEnv('GMAIL_USER');
-    const accessToken = await getAccessToken();
-
-    const raw = createRawEmail(
-      from,
-      to,
-      subject,
-      html,
-    );
-
-    const response = await fetch(GMAIL_API, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        raw,
-      }),
-      cache: 'no-store',
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error('GMAIL SEND ERROR:', data);
+  // Resend est le fournisseur recommandé pour Vercel. L'expéditeur doit être
+  // une adresse/domaine autorisé dans le compte Resend.
+  if (process.env.RESEND_API_KEY) {
+    try {
+      const from = requiredEnv('EMAIL_FROM');
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${requiredEnv('RESEND_API_KEY')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ from, to: [to], subject, html }),
+        cache: 'no-store',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        console.error('RESEND SEND ERROR:', response.status, data);
+        return false;
+      }
+      console.log(`RESEND: email accepté par l'API pour ${to}`);
+      return true;
+    } catch (error) {
+      console.error('RESEND:', error instanceof Error ? error.message : error);
       return false;
     }
-
-    console.log(`GMAIL: email envoyé à ${to}`);
-
-    return true;
-  } catch (error) {
-    console.error(
-      'GMAIL:',
-      error instanceof Error ? error.message : error,
-    );
-
-    return false;
   }
+
+  // Compatibilité avec l'intégration Gmail API existante.
+  if (process.env.GMAIL_USER && process.env.GMAIL_CLIENT_ID &&
+      process.env.GMAIL_CLIENT_SECRET && process.env.GMAIL_REFRESH_TOKEN) {
+    try {
+      const from = requiredEnv('GMAIL_USER');
+      const accessToken = await getAccessToken();
+      const response = await fetch(GMAIL_API, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ raw: createRawEmail(from, to, subject, html) }),
+        cache: 'no-store',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        console.error('GMAIL SEND ERROR:', response.status, data);
+        return false;
+      }
+      console.log(`GMAIL: email envoyé à ${to}`);
+      return true;
+    } catch (error) {
+      console.error('GMAIL:', error instanceof Error ? error.message : error);
+      return false;
+    }
+  }
+
+  console.warn('EMAIL: aucun fournisseur configuré (RESEND_API_KEY ou identifiants Gmail API).');
+  return false;
 }
