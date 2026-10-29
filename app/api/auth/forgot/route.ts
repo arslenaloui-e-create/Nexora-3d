@@ -17,7 +17,20 @@ export async function POST(req: Request) {
       const raw = randomToken();
       await db.passwordResetToken.create({ data: { userId: u.id, tokenHash: hashToken(raw), expiresAt: new Date(Date.now() + 3600000) } });
       const url = `${process.env.APP_URL || 'http://localhost:3000'}/auth/reset?token=${raw}`;
-      await sendMail(u.email, 'Réinitialisation de votre mot de passe Nexora 3D', `<p>Ce lien est valable une heure :</p><p><a href="${url}">${url}</a></p><p>Si vous n’êtes pas à l’origine de cette demande, ignorez cet email.</p>`);
+            const sent = await sendMail(
+        u.email,
+        'Réinitialisation de votre mot de passe Nexora 3D',
+        `
+          <p>Vous avez demandé à réinitialiser votre mot de passe.</p>
+          <p>Ce lien est valable une heure :</p>
+          <p><a href="${url}">Réinitialiser mon mot de passe</a></p>
+          <p>Si vous n’êtes pas à l’origine de cette demande, ignorez cet e-mail.</p>
+        `,
+      );
+
+      if (!sent) {
+        console.error('PASSWORD_RESET_EMAIL_FAILED');
+      }
     }
     return NextResponse.json({ message: MESSAGE });
   } catch (e) {

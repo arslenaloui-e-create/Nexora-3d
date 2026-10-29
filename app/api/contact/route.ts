@@ -12,12 +12,36 @@ export async function POST(req: Request) {
     const d = contactSchema.parse(await req.json());
     if (d.website) return NextResponse.json({ message: 'Message envoyé.' });
     const row = await db.contactMessage.create({ data: { name: d.name, email: d.email, phone: d.phone || null, subject: d.subject, message: d.message } });
-    await notifyAdmins('CONTACT', `Nouveau message de ${row.name} : ${row.subject}`);
-    await sendMail(
+        try {
+      await notifyAdmins(
+        'CONTACT',
+        `Nouveau message de ${row.name} : ${row.subject}`,
+      );
+    } catch (error) {
+      console.error('CONTACT_INTERNAL_NOTIFICATION_FAILED', {
+        messageId: row.id,
+      });
+    }
+
+    const emailSent = await sendMail(
       adminInbox(),
       `Contact — ${row.subject}`,
-      `<p><b>${escapeHtml(row.name)}</b> — ${escapeHtml(row.email)}${row.phone ? ` — ${escapeHtml(row.phone)}` : ''}</p><p style="white-space:pre-wrap">${escapeHtml(row.message)}</p>`,
+      `
+        <h2>Nouveau message depuis le site Nexora 3D</h2>
+        <p><strong>Nom :</strong> ${escapeHtml(row.name)}</p>
+        <p><strong>E-mail :</strong> ${escapeHtml(row.email)}</p>
+        ${row.phone ? `<p><strong>Téléphone :</strong> ${escapeHtml(row.phone)}</p>` : ''}
+        <p><strong>Sujet :</strong> ${escapeHtml(row.subject)}</p>
+        <p><strong>Message :</strong></p>
+        <p style="white-space:pre-wrap">${escapeHtml(row.message)}</p>
+      `,
     );
+
+    if (!emailSent) {
+      console.error('CONTACT_EMAIL_FAILED', {
+        messageId: row.id,
+      });
+    }
     return NextResponse.json({ message: 'Message envoyé. Nous vous répondons par email, en général sous 24 h.' });
   } catch (e) {
     return apiError(e, 'Envoi impossible pour le moment.');

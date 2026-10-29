@@ -30,15 +30,48 @@ async function nextNumber() {
   return `${prefix}${String(n + 1).padStart(4, '0')}`;
 }
 
+
 async function announce(q: { id: string; number: string; clientId: string; requestId: string | null }) {
   await notifyUser(q.clientId, 'QUOTE', `Votre devis ${q.number} est disponible.`);
-  if (q.requestId) await db.quoteRequest.update({ where: { id: q.requestId }, data: { status: 'QUOTED' } });
-  const c = await db.user.findUnique({ where: { id: q.clientId } });
-  if (c) {
-    const url = `${process.env.APP_URL || ''}/dashboard/quotes`;
-    await sendMail(c.email, `Votre devis Nexora 3D ${q.number}`, `<p>Bonjour ${escapeHtml(c.firstName)},</p><p>Votre devis ${q.number} est disponible dans votre espace client : <a href="${url}">${url}</a></p>`);
+
+  if (q.requestId) {
+    await db.quoteRequest.update({
+      where: { id: q.requestId },
+      data: { status: 'QUOTED' },
+    });
+  }
+
+  const c = await db.user.findUnique({
+    where: { id: q.clientId },
+    select: { id: true, firstName: true, email: true },
+  });
+
+  if (!c) {
+    console.error('QUOTE_CLIENT_NOT_FOUND', { quoteId: q.id });
+    return;
+  }
+
+  const appUrl = process.env.APP_URL?.replace(/\/+$/, '');
+
+  if (!appUrl) {
+    console.error('QUOTE_EMAIL_APP_URL_MISSING', { quoteId: q.id });
+    return;
+  }
+
+  const url = `${appUrl}/dashboard/quotes`;
+  const sent = await sendMail(
+    c.email,
+    `Votre devis Nexora 3D ${q.number}`,
+    `<p>Bonjour ${escapeHtml(c.firstName)},</p>
+     <p>Votre devis ${escapeHtml(q.number)} est disponible dans votre espace client :
+     <a href="${escapeHtml(url)}">Consulter mon devis</a>.</p>`,
+  );
+
+  if (!sent) {
+    console.error('QUOTE_CLIENT_EMAIL_FAILED', { quoteId: q.id });
   }
 }
+
 
 export async function POST(req: Request) {
   try {

@@ -19,12 +19,60 @@ export async function POST(req: Request) {
         budget: d.budget ?? null, deadline: d.deadline ? new Date(`${d.deadline}T23:59:59`) : null,
       },
     });
-    await notifyAdmins('QUOTE_REQUEST', `Nouvelle demande de ${u.firstName} ${u.lastName} : ${q.title}`);
-    await sendMail(
+        try {
+      await notifyAdmins(
+        'QUOTE_REQUEST',
+        `Nouvelle demande de ${u.firstName} ${u.lastName} : ${q.title}`,
+      );
+    } catch {
+      console.error('QUOTE_INTERNAL_NOTIFICATION_FAILED', {
+        quoteRequestId: q.id,
+      });
+    }
+
+    const adminEmailSent = await sendMail(
       adminInbox(),
       `Nouvelle demande de devis — ${q.title}`,
-      `<p><b>${escapeHtml(u.firstName)} ${escapeHtml(u.lastName)}</b> (${escapeHtml(u.email)})</p><p>${escapeHtml(q.serviceType)} — ${escapeHtml(q.title)}</p><p style="white-space:pre-wrap">${escapeHtml(q.description)}</p>`,
+      `
+        <h2>Nouvelle demande de devis</h2>
+        <p><strong>Client :</strong> ${escapeHtml(u.firstName)} ${escapeHtml(u.lastName)}</p>
+        <p><strong>E-mail :</strong> ${escapeHtml(u.email)}</p>
+        <p><strong>Service :</strong> ${escapeHtml(q.serviceType)}</p>
+        <p><strong>Titre :</strong> ${escapeHtml(q.title)}</p>
+        <p><strong>Description :</strong></p>
+        <p style="white-space:pre-wrap">${escapeHtml(q.description)}</p>
+        ${q.dimensions ? `<p><strong>Dimensions :</strong> ${escapeHtml(q.dimensions)}</p>` : ''}
+        ${q.quantity != null ? `<p><strong>Quantité :</strong> ${q.quantity}</p>` : ''}
+        ${q.material ? `<p><strong>Matériau :</strong> ${escapeHtml(q.material)}</p>` : ''}
+        ${q.budget != null ? `<p><strong>Budget :</strong> ${q.budget}</p>` : ''}
+      `,
     );
+
+    if (!adminEmailSent) {
+      console.error('QUOTE_ADMIN_EMAIL_FAILED', {
+        quoteRequestId: q.id,
+      });
+    }
+
+    const clientEmailSent = await sendMail(
+      u.email,
+      'Confirmation de votre demande de devis — Nexora 3D',
+      `
+        <h2>Nous avons bien reçu votre demande !</h2>
+        <p>Bonjour ${escapeHtml(u.firstName)},</p>
+        <p>Votre demande de devis a été enregistrée avec succès.</p>
+        <p><strong>Référence :</strong> ${escapeHtml(q.id)}</p>
+        <p><strong>Projet :</strong> ${escapeHtml(q.title)}</p>
+        <p>Notre équipe examinera votre demande et reviendra vers vous.</p>
+        <p>Merci de faire confiance à Nexora 3D.</p>
+      `,
+    );
+
+    if (!clientEmailSent) {
+      console.error('QUOTE_CLIENT_EMAIL_FAILED', {
+        quoteRequestId: q.id,
+      });
+    }
     return NextResponse.json({ message: 'Demande envoyée.', id: q.id });
   } catch (e) {
     if (e instanceof Error && e.message === 'FORBIDDEN') return jsonError('Les demandes de devis se font depuis un compte client.', 403);

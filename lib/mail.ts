@@ -1,7 +1,17 @@
-const GMAIL_API = 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send';
+const GMAIL_API =
+  'https://gmail.googleapis.com/gmail/v1/users/me/messages/send';
+
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
-export function escapeHtml(value: unknown) {
+const REQUEST_TIMEOUT_MS = 10_000;
+
+export type MailResult = {
+  ok: boolean;
+  provider: 'resend' | 'gmail' | 'none';
+  status: 'accepted' | 'failed' | 'not_configured';
+};
+
+export function escapeHtml(value: unknown): string {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -10,21 +20,26 @@ export function escapeHtml(value: unknown) {
     .replace(/'/g, '&#039;');
 }
 
-export function adminInbox() {
-  return process.env.ADMIN_NOTIFICATION_EMAIL || process.env.ADMIN_NOTIFY_EMAIL || process.env.GMAIL_USER || '';
+export function adminInbox(): string {
+  return (
+    process.env.ADMIN_NOTIFICATION_EMAIL ||
+    process.env.ADMIN_NOTIFY_EMAIL ||
+    process.env.GMAIL_USER ||
+    ''
+  );
 }
 
-function requiredEnv(name: string) {
-  const value = process.env[name];
+function requiredEnv(name: string): string {
+  const value = process.env[name]?.trim();
 
   if (!value) {
-    throw new Error(`Variable d'environnement manquante : ${name}`);
+    throw new Error(`Missing environment variable: ${name}`);
   }
 
   return value;
 }
 
-function base64UrlEncode(value: string) {
+function base64UrlEncode(value: string): string {
   return Buffer.from(value, 'utf8')
     .toString('base64')
     .replace(/\+/g, '-')
@@ -37,11 +52,13 @@ function createRawEmail(
   to: string,
   subject: string,
   html: string,
-) {
+): string {
+  const encodedSubject = `=?UTF-8?B?${Buffer.from(subject, 'utf8').toString('base64')}?=`;
+
   const message = [
     `From: NEXORA 3D <${from}>`,
     `To: ${to}`,
-    `Subject: ${subject}`,
+    `Subject: ${encodedSubject}`,
     'MIME-Version: 1.0',
     'Content-Type: text/html; charset=UTF-8',
     'Content-Transfer-Encoding: 8bit',
@@ -52,104 +69,187 @@ function createRawEmail(
   return base64UrlEncode(message);
 }
 
-async function getAccessToken() {
-  const clientId = requiredEnv('GMAIL_CLIENT_ID');
-  const clientSecret = requiredEnv('GMAIL_CLIENT_SECRET');
-  const refreshToken = requiredEnv('GMAIL_REFRESH_TOKEN');
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+): Promise<Response> {
+  return fetch(url, {
+    ...init,
+    cache: 'no-store',
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+}
 
-  const response = await fetch(GOOGLE_TOKEN_URL, {
+async function getAccessToken(): Promise<string> {
+  const response = await fetchWithTimeout(GOOGLE_TOKEN_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: refreshToken,
+      client_id: requiredEnv('GMAIL_CLIENT_ID'),
+      client_secret: requiredEnv('GMAIL_CLIENT_SECRET'),
+      refresh_token: requiredEnv('GMAIL_REFRESH_TOKEN'),
       grant_type: 'refresh_token',
     }),
-    cache: 'no-store',
   });
 
-  const data = await response.json();
+  const data = await response.json().catch(() => ({}));
 
-  if (!response.ok || !data.access_token) {
-    console.error('GMAIL TOKEN ERROR:', data);
-    throw new Error('Impossible d’obtenir le token Gmail.');
+  if (!response.ok || typeof data.access_token !== 'string') {
+    throw new Error('Gmail authentication failed');
   }
 
-  return data.access_token as string;
+  return data.access_token;
 }
 
-/**
- * Envoie un email via Gmail API.
- *
- * Aucun SMTP n'est utilisé.
- * L'appel passe par HTTPS, ce qui évite le problème
- * "SMTP: Connection timeout" rencontré sur Railway.
- */
+async function sendWithResend(
+  to: string,
+  subject: string,
+  html: string,
+): Promise<MailResult> {
+  const apiKey = requiredEnv('RESEND_API_KEY');
+  const from = requiredEnv('EMAIL_FROM');
+
+  const response = await fetchWithTimeout(
+    'https://api.resend.com/emails',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from,
+        to: [to],
+        subject,
+        html,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    // Ne pas journaliser le corps de réponse du fournisseur.
+    console.error('EMAIL_PROVIDER_REJECTED', {
+      provider: 'resend',
+      statusCode: response.status,
+    });
+
+    return {
+      ok: false,
+      provider: 'resend',
+      status: 'failed',
+    };
+  }
+
+  // HTTP 2xx signifie accepté par le fournisseur, pas nécessairement livré.
+  console.info('EMAIL_PROVIDER_ACCEPTED', {
+    provider: 'resend',
+  });
+
+  return {
+    ok: true,
+    provider: 'resend',
+    status: 'accepted',
+  };
+}
+
+async function sendWithGmail(
+  to: string,
+  subject: string,
+  html: string,
+): Promise<MailResult> {
+  const from = requiredEnv('GMAIL_USER');
+  const accessToken = await getAccessToken();
+
+  const response = await fetchWithTimeout(GMAIL_API, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      raw: createRawEmail(from, to, subject, html),
+    }),
+  });
+
+  if (!response.ok) {
+    console.error('EMAIL_PROVIDER_REJECTED', {
+      provider: 'gmail',
+      statusCode: response.status,
+    });
+
+    return {
+      ok: false,
+      provider: 'gmail',
+      status: 'failed',
+    };
+  }
+
+  console.info('EMAIL_PROVIDER_ACCEPTED', {
+    provider: 'gmail',
+  });
+
+  return {
+    ok: true,
+    provider: 'gmail',
+    status: 'accepted',
+  };
+}
+
 export async function sendMail(
   to: string,
   subject: string,
   html: string,
-) {
-  if (!to) {
-    console.error('EMAIL: destinataire absent');
+): Promise<boolean> {
+  if (!to?.trim()) {
+    console.warn('EMAIL_NOT_SENT', {
+      reason: 'missing_recipient',
+    });
+
     return false;
   }
 
-  // Resend est le fournisseur recommandé pour Vercel. L'expéditeur doit être
-  // une adresse/domaine autorisé dans le compte Resend.
   if (process.env.RESEND_API_KEY) {
     try {
-      const from = requiredEnv('EMAIL_FROM');
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${requiredEnv('RESEND_API_KEY')}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ from, to: [to], subject, html }),
-        cache: 'no-store',
+      const result = await sendWithResend(to, subject, html);
+      return result.ok;
+    } catch {
+      // Pas de bascule automatique vers Gmail :
+      // une erreur réseau peut survenir après acceptation par Resend.
+      console.error('EMAIL_SEND_FAILED', {
+        provider: 'resend',
+        reason: 'request_failed',
       });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        console.error('RESEND SEND ERROR:', response.status, data);
-        return false;
-      }
-      console.log(`RESEND: email accepté par l'API pour ${to}`);
-      return true;
-    } catch (error) {
-      console.error('RESEND:', error instanceof Error ? error.message : error);
+
       return false;
     }
   }
 
-  // Compatibilité avec l'intégration Gmail API existante.
-  if (process.env.GMAIL_USER && process.env.GMAIL_CLIENT_ID &&
-      process.env.GMAIL_CLIENT_SECRET && process.env.GMAIL_REFRESH_TOKEN) {
+  const gmailConfigured = Boolean(
+    process.env.GMAIL_USER &&
+      process.env.GMAIL_CLIENT_ID &&
+      process.env.GMAIL_CLIENT_SECRET &&
+      process.env.GMAIL_REFRESH_TOKEN,
+  );
+
+  if (gmailConfigured) {
     try {
-      const from = requiredEnv('GMAIL_USER');
-      const accessToken = await getAccessToken();
-      const response = await fetch(GMAIL_API, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ raw: createRawEmail(from, to, subject, html) }),
-        cache: 'no-store',
+      const result = await sendWithGmail(to, subject, html);
+      return result.ok;
+    } catch {
+      console.error('EMAIL_SEND_FAILED', {
+        provider: 'gmail',
+        reason: 'request_failed',
       });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        console.error('GMAIL SEND ERROR:', response.status, data);
-        return false;
-      }
-      console.log(`GMAIL: email envoyé à ${to}`);
-      return true;
-    } catch (error) {
-      console.error('GMAIL:', error instanceof Error ? error.message : error);
+
       return false;
     }
   }
 
-  console.warn('EMAIL: aucun fournisseur configuré (RESEND_API_KEY ou identifiants Gmail API).');
+  console.warn('EMAIL_NOT_SENT', {
+    reason: 'provider_not_configured',
+  });
+
   return false;
 }
